@@ -19,14 +19,14 @@ var set = {
     "verbose": "true",
     "publish": "true",
     "libraryPath":"SiteAssets",
-    "cache": "true",
-    "startFolder": "SiteAssets/Resource"
+    // "cache": "true",
+    // "startFolder": "SiteAssets/Resource"
 }
 
 
 gulp.task('default', function () {
-    return gulp.src('src/SiteAssets/Resource/**/*.*')
-        .pipe(watch('src/SiteAssets/Resource/**/*.*'))
+    return gulp.src('src/SiteAssets/Resource/*.*')
+        .pipe(watch('src/SiteAssets/Resource/*.*'))
         .pipe(spsync(set))
         //.pipe(gulp.dest('build'))
 });
