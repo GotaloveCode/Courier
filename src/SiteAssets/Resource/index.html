@@ -1,0 +1,477 @@
+    <!-- <link rel="stylesheet" href="/sites/egpafke/hr/siteassets1/resource/css/bootstrap.css"> -->
+    <link rel="stylesheet" href="/sites/egpafke/hr/siteassets/resource/css/main.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.13/css/all.css" integrity="sha384-DNOHZ68U8hZfKXOrtjWvjxusGo9WQnrNx2sqG0tfsghAvtVlRW3tvkXWZh58N9jp" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/dataTables.bootstrap4.min.css">
+    <link href='/sites/egpafke/hr/siteassets/resource/css/fullcalendar.min.css' rel='stylesheet' />
+    <link href='/sites/egpafke/hr/siteassets/resource/css/fullcalendar.print.min.css' rel='stylesheet' media='print'/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/formvalidation@0.6.2-dev/dist/css/formValidation.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.5/css/select2.min.css">
+    <link rel="stylesheet" href="/sites/egpafke/hr/siteassets/resource/css/steps.css">
+    <!--END OF STYLES-->
+
+    <!--CONTENT BODY-->
+    <div id="app" class="wrapper">
+        <div class="container">
+            <div class="row">
+                <div class="main right col-lg-10 col-md-10 col-sm-10">
+                    <div class="content tab-content">
+                        <div class="tab-pane fade show active" id="bookingtab" role="tabpanel">
+                            <div class="container">
+                                <div class="row col-lg-12 col-md-12 col-sm-12">
+                                    <div id="requesterDetails">
+                                        <h3>Requester Details</h3>
+                                        <fieldset data-step=0>
+                                            <div class="row">
+                                                <div class="form-group col-md-6 col-sm-6 col-lg-6">
+                                                    <label for="date">Date of Meeting</label>
+                                                    <div class="input-group date" id="datepicker"
+                                                         data-target-input="nearest">
+                                                        <input type="text" name="date" id="date"
+                                                               class="form-control datetimepicker-input"
+                                                               data-target="#datepicker">
+                                                        <div class="input-group-append" data-target="#datepicker"
+                                                             data-toggle="datetimepicker">
+                                                        <span class="input-group-text">
+                                                            <span class="fa fa-calendar"></span>
+                                                        </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group col-md-6 col-sm-6 col-lg-6">
+                                                    <label for="requesterName">Name of Requester</label>
+                                                    <input type="text" class="form-control" id="requesterName"
+                                                           name="requesterName">
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="form-group col-md-6 col-sm-6 col-lg-6">
+                                                    <label for="meetingName">Name of Meeting</label>
+                                                    <input type="text" class="form-control" id="meetingName" name="meetingName">
+                                                </div>
+                                                <div class="form-group col-md-6 col-sm-6 col-lg-6">
+                                                    <label>Room</label>
+                                                    <select class="form-control" id="room" name="room">
+                                                        <option value="board">Board room</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 col-lg-6 col-sm-6 form-inline">
+                                                    <div class="col-md-5 col-lg-5 col-sm-5">
+                                                        <label>Meeting Time</label>
+                                                    </div>
+                                                    <div class="col-md-7 col-lg-7 col-sm-7">
+                                                        <div class="row-fluid">
+                                                            <div class="form-group">
+                                                                <div class="col-md-6 col-sm-6 col-lg-6">
+                                                                    <label for="start">Start </label>
+                                                                </div>
+                                                                <div class="col-md-6 col-sm-6 col-lg-6 p-1">
+                                                                    <div class="input-group date" id="starttimepicker" data-target-input="nearest">
+                                                                        <input type="text" class="form-control datetimepicker-input" data-target="#starttimepicker" name="start" id="start"/>
+                                                                        <div class="input-group-append" data-target="#starttimepicker" data-toggle="datetimepicker">
+                                                                            <div class="input-group-text"><i class="fa fa-clock-o"></i></div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row-fluid">
+                                                            <div class="form-group">
+                                                                <div class="col-md-6 col-sm-6 col-lg-6">
+                                                                    <label for="end">End </label>
+                                                                </div>
+                                                                <div class="col-md-6 col-sm-6 col-lg-6 p-1">
+                                                                    <div class="input-group date" id="endtimepicker" data-target-input="nearest">
+                                                                        <input type="text" class="form-control datetimepicker-input" data-target="#endtimepicker" name="end" id="end"/>
+                                                                        <div class="input-group-append" data-target="#endtimepicker" data-toggle="datetimepicker">
+                                                                            <div class="input-group-text"><i class="fa fa-clock-o"></i></div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group col-md-6 col-sm-6 col-lg-6">
+                                                    <label for="meetingDuration">Duration of Meeting</label>
+                                                    <div class="row">
+                                                        <div class="col-md-6 col-sm-6 col-lg-6">
+                                                            <input type="number" name="meetingDuration" id="meetingDuration" class="form-control"
+                                                                   min="1" value="1">
+                                                        </div>
+                                                        <div class="col-md-6 col-sm-6 col-lg-6">
+                                                            <select name="meetingDurationUnit" id="meetingDurationUnit" class="form-control">
+                                                                <option value="hours">Hours</option>
+                                                                <option value="Minutes">Minutes</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </fieldset>
+
+                                        <h3>Materials</h3>
+                                        <fieldset data-step="1">
+                                            <div class="row">
+                                                <div class="form-group col-lg-12 col-md-12 col-sm-12">
+                                                    <label for="nature">Indicate the nature of Assistance Needed</label>
+                                                    <textarea name="nature" id="nature" class="form-control"></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="row-fluid">
+                                                <label for="equipment">Indicate the Equipment needed</label>
+                                                <div class="col-lg-12 col-sm-12 col-md-12 row">
+                                                    <div class="col-md-6 col-lg-6 col-sm-6">
+                                                        <div class="form-group">
+                                                            <input type="checkbox" name="equipment" id="laptop" value="Laptop" class="form-check-input">
+                                                            <label for="laptop" class="form-check-label">Laptop</label>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <input type="checkbox" name="equipment" id="projector" value="Projector" class="form-check-input">
+                                                            <label for="projector" class="form-check-label">Projector</label>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <input type="checkbox" name="equipment" id="notebooks" value="Notebooks" class="form-check-input">
+                                                            <label for="notebooks" class="form-check-label">Notebooks</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6 col-lg-6 col-sm-6">
+                                                        <div class="form-group">
+                                                            <input type="checkbox" name="equipment" id="projector_tv" value="Projector/TV training" class="form-check-input">
+                                                            <label for="projector_tv" class="form-check-label">Projector/TV training</label>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <input type="checkbox" name="equipment" id="pp_clicker" value="PowerPoint Clicker" class="form-check-input">
+                                                            <label for="pp_clicker" class="form-check-label">PowerPoint Clicker</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </fieldset>
+                                        <h3>Refreshments</h3>
+                                        <fieldset data-step="2" class="content">
+                                            <div class="row-fluid">
+                                                <div class="table-responsive">
+                                                    <h4>Snack/Lunch Service</h4>
+                                                    <table class="table table-striped table-responsive" id="tableItems">
+                                                        <thead>
+                                                        <th>Item Description</th>
+                                                        <th>Unit of Measure</th>
+                                                        <th>No of Units</th>
+                                                        <th>Estimated Unit Cost</th>
+                                                        <th>Total Amount</th>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td>
+                                                                    <input type="text" class="form-control" name="item[]" id="item">
+                                                                </td>
+                                                                <td>
+                                                                    <div class="form-group">
+                                                                        <select name="unitofmeasure[]" id="unitOfmeasure" class="form-control input-sm unitOfmeasure">
+                                                                            <option></option>
+                                                                            <option>Pieces</option>
+                                                                            <option>Kgs</option>
+                                                                            <option>Litres</option>
+                                                                            <option>Pax</option>
+                                                                            <option>Reams</option>
+                                                                            <option>Packs</option>
+                                                                            <option>Tins</option>
+                                                                            <option>Packets</option>
+                                                                        </select>
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <input type="number" name="number[]" id="number"
+                                                                           class="form-control quantity">
+                                                                </td>
+                                                                <td>
+                                                                    <input type="number" name="unit-cost[]" id="unit-cost"
+                                                                           class="form-control unitcost">
+                                                                </td>
+                                                                <td>
+                                                                    <input type="text" name="totalamount[]" id="totalamount"
+                                                                           class="form-control subtotal" readonly>
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                    <div class="row-fluid text-right">
+                                                        <label for="totalcost" class="col-2">Total</label>
+                                                        <span class="col-2" id="totalcost"></span>
+                                                    </div>
+                                                    <div class="row-fluid">
+                                                        <button class="btn btn-primary-1" type="button" id="btnadd">Add</button>
+                                                        <button class="btn btn-primary-2 m-3" type="button" id="btnremove">Remove</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </fieldset>
+
+                                        <h3>Verify</h3>
+                                        <fieldset data-step="3">
+                                            <label>Requester Details</label>
+                                            <div class="row m-3">
+                                                <div class="col-6">
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <label>Date of Meeting</label>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <span id="dateofmeeting"></span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <label>Name of Meeting</label>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <span id="nameofmeeting"></span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <label>Start Time</label>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <span id="starttime"></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <label>Requester Name</label>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <span id="reqname"></span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <label>Duration of Meeting</label>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <span id="durationMeeting"></span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <label>End Time</label>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <span id="endtime"></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <label>Room</label>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <span id="roombind"></span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <label>Duration of Meeting</label>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <span id="durationMeeting"></span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <label>End Time</label>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <span id="endtime"></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <label>Equipment</label>
+                                            <div class="row m-3">
+                                                <div class="col-6">
+                                                    <div class="col-6">
+                                                        <label>Nature of Assistance Needed</label>
+                                                    </div>
+                                                    <div>
+                                                        <span id="natureneeded"></span>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="col-6">
+                                                        <label>Materials Needed</label>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <span id="materialsneeded"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <h4>Refreshments</h4>
+                                            <div class="row-fluid">
+                                                <div class="row-fluid">
+                                                    <table class="table table-striped">
+                                                        <thead>
+                                                            <th>Item Description</th>
+                                                            <th>Unit of Measure</th>
+                                                            <th>No of Units</th>
+                                                            <th>Estimated Unit Cost</th>
+                                                            <th>Total Amount</th>
+                                                        </thead>
+                                                        <tbody id="itemslist"></tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </fieldset>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade show" id="calendartab" role="tabpanel">
+                            <div class="container">
+                                <div class="row">
+                                    <div id="calendar"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade show" id="reportstab" role="tabpanel">
+                            <div class="container">
+                                <div class="row-fluid">
+                                    <h3 class="border-bottom text-left">Reports</h3>
+                                </div>
+                                <div class="row-fluid mt-2">
+                                    <div class="filter mb-5">
+                                        <div class="form-inline">
+                                            <div class="col-sm-6 col-md-6 col-lg-6">
+                                                <div class="row-fluid p-1">
+                                                    <div class="form-group">
+                                                        <div class="col-md-3 col-sm-4 col-lg-3">
+                                                            <label for="date">Date</label>
+                                                        </div>
+                                                        <div class="col-md-9 col-sm-8 col-lg-9 justify-content-end">
+                                                            <input type="text" class="form-control">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row-fluid p-1">
+                                                    <div class="form-group">
+                                                        <div class="col-md-3 col-sm-4 col-lg-3">
+                                                            <label for="location">Location</label>
+                                                        </div>
+                                                        <div class="col-md-9 col-sm-8 col-lg-9 justify-content-end">
+                                                            <input type="text" class="form-control" id="location">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-6 col-md-6 col-lg-6">
+                                                <div class="row-fluid p-1">
+                                                    <div class="form-group">
+                                                        <div class="col-md-3 col-sm-4 col-lg-3">
+                                                            <label for="filter_room">Room</label>
+                                                        </div>
+                                                        <div class="col-md-9 col-sm-8 col-lg-9 justify-content-end">
+                                                            <input type="text" class="form-control" id="filter_room">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row-fluid p-1">
+                                                    <div class="form-group">
+                                                        <div class="col-md-3 col-sm-4 col-lg-3">
+                                                            <label for="bookedby">Booked By</label>
+                                                        </div>
+                                                        <div class="col-md-9 col-sm-8 col-lg-9 justify-content-end">
+                                                            <input type="text" class="form-control" id="bookedby">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="table-responsive">
+                                        <table class="table table-condensed table-striped table-hover" id="reportstable">
+                                            <thead>
+                                            <th>Meeting</th>
+                                            <th>Room</th>
+                                            <th>Booker</th>
+                                            <th>Date</th>
+                                            <th>Resources</th>
+                                            </thead>
+                                            <tbody id="reportsbody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade show" id="admintab" role="tabpanel">
+                            <div class="container">
+                                <div class="row">
+                                    <div class="table-responsive">
+                                        <table class="table table-condensed table-striped table-hover" id="admintable">
+                                            <thead style="background: #e86b24;">
+                                            <th>Date</th>
+                                            <th>Start Time</th>
+                                            <th>End Time</th>
+                                            <th>Requester Name</th>
+                                            <th>Attach Form</th>
+                                            <th>View</th>
+                                            <th>Status</th>
+                                            </thead>
+                                            <tbody id="admintablebody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="sidebar left col-lg-2 col-sm-2 col-md-2">
+                    <div class="sidebar-heading">
+                        <h2 class="text-center text-uppercase">Resource Booking</h2>
+                    </div>
+                    <div class="sidebar-nav">
+                        <nav id="sidebar">
+                            <ul class="nav flex-column">
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#bookingtab" data-toggle="tab">
+                                        <i class="fa fa-book"></i>&nbsp;Booking
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#calendartab" data-toggle="tab">
+                                        <i class="fa fa-calendar"></i>&nbsp;Calendar
+                                    </a>
+                                </li>
+                                <li class="nav-item"><a href="#reportstab" class="nav-link" data-toggle="tab"><i
+                                        class="fa fa-signal"></i>&nbsp;Reports</a></li>
+                                <li class="nav-item"><a href="#admintab" class="nav-link" data-toggle="tab"><i
+                                        class="fa fa-male"></i>&nbsp;Admin</a></li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--END OF CONTENT BODY-->
+<!--SCRIPTS-->
+<script src="https://unpkg.com/sweetalert2@7.22.0/dist/sweetalert2.all.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-steps/1.1.0/jquery.steps.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.21.0/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/formvalidation@0.6.2-dev/dist/js/formValidation.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/formvalidation@0.6.2-dev/dist/js/framework/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.16/js/dataTables.bootstrap4.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/tempusdominus-bootstrap-4/5.0.0-alpha18/js/tempusdominus-bootstrap-4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.5/js/select2.min.js"></script>
+<script src='/sites/egpafke/hr/siteassets/resource/js/fullcalendar.min.js'></script>
+<script src='/sites/egpafke/hr/siteassets/resource/js/main.js'></script>
+<!--END OF SCRIPTS-->

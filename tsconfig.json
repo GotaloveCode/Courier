@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "target": "es5",
+      //  "module": "commonjs",
+        "noImplicitAny": true,
+        "removeComments": true,
+        "preserveConstEnums": true,        
+        //"outFile": "src/SiteAssets/Courier/js/tsc.js",
+        // "sourceMap": true,        
+    },
+    // "files": [
+    //     "src/ts/Courier.ts",
+    //     "src/ts/CourierUI.ts"
+    //   ],
+    //   "exclude": [
+    //     "node_modules"
+    // ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "courier",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@ryancavanaugh/sweetalert": "^1.1.12-alpha",
+    "@types/datatables.net": "^1.10.10",
+    "@types/eonasdan-bootstrap-datetimepicker": "^4.17.26",
+    "@types/jquery": "^2.0.49",
+    "datatables.net-responsive": "^2.2.1",
+    "datatables.responsive.typings": "^1.0.3",
+    "eonasdan-bootstrap-datetimepicker": "^4.17.47",
+    "formvalidation": "^0.6.2-dev",
+    "gulp": "^3.9.1",
+    "gulp-spsync-creds": "^2.3.8",
+    "gulp-tslint": "^8.1.3",
+    "gulp-typescript": "^4.0.2",
+    "gulp-watch": "^5.0.0",
+    "sweet-alert": "^2.0.5",
+    "tslint": "^5.10.0",
+    "typescript": "^2.9.1"
+  }
+}
