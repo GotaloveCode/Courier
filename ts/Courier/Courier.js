@@ -1,22 +1,23 @@
-var parentDigest = null;
+var parentDigest = "";
 var siteUrl = _spPageContextInfo.webAbsoluteUrl;
 var parentUrl = "https://egpafkenya.sharepoint.com/sites/egpafke";
 var listUrl = "/_api/web/lists/getbytitle";
 var mySentUrl = siteUrl +
     listUrl +
-    "('Courier')/items?$select=PackageType,Project,Origin,Destination," +
+    "('Courier')/items?$select=PackageType,Project,Origin,Quantity,Destination," +
     "Description,SendingAdminStatus,Courier,CourierStatus,ReceivingAdminStatus,RecipientStatus," +
     "Recipient/Title&$expand=Recipient&$filter=AuthorId eq " +
     _spPageContextInfo.userId;
 var myReceivedUrl = siteUrl +
     listUrl +
-    "('Courier')/items?$select=PackageType,Project,Origin,Destination," +
+    "('Courier')/items?$select=PackageType,Project,Origin,Quantity,Destination," +
     "Description,SendingAdminStatus,Courier,CourierStatus,ReceivingAdminStatus,RecipientStatus," +
-    "Sender/Title&$expand=Sender&$filter=RecipientId eq " +
+    "Author/Title&$expand=Author&$filter=RecipientId eq " +
     _spPageContextInfo.userId;
+var courierurl = siteUrl + "/_api/web/lists/getbytitle('Courier')/items";
 var Courier = (function () {
     function Courier() {
-        this.courierurl = siteUrl + "/_api/web/lists/getbytitle('Courier')/items";
+        this.Admin = false;
     }
     Courier.prototype.PostCourier = function (callback) {
         var data = {
@@ -26,23 +27,44 @@ var Courier = (function () {
             Destination: this.Destination,
             Origin: this.Origin,
             PackageType: this.PackageType,
-            Project: this.Project
+            Project: this.Project,
+            Quantity: this.Quantity,
         };
-        this.PostJson(this.courierurl, data, callback, this.OnError);
+        Courier.prototype.PostJson(courierurl, data, callback);
         return 0;
     };
-    Courier.prototype.PostJson = function (endpointUri, payload, success, error) {
+    Courier.prototype.PostJson = function (endpointUri, payload, success) {
         $.ajax({
             contentType: "application/json;odata=verbose",
-            headers: { "Accept": "application/json;odata=verbose", "X-RequestDigest": $("#__REQUESTDIGEST").val() },
+            headers: {
+                Accept: "application/json;odata=verbose",
+                "X-RequestDigest": $("#__REQUESTDIGEST").val()
+            },
             data: JSON.stringify(payload),
-            error: error,
+            error: Courier.prototype.OnError,
             success: success,
             type: "POST",
             url: endpointUri
         });
     };
+    Courier.prototype.UpdateJson = function (Uri, payload, success) {
+        $.ajax({
+            url: Uri,
+            type: "POST",
+            data: JSON.stringify(payload),
+            contentType: "application/json;odata=verbose",
+            headers: {
+                Accept: "application/json;odata=verbose",
+                "X-RequestDigest": $("#__REQUESTDIGEST").val(),
+                "X-HTTP-Method": "MERGE",
+                "If-Match": "*"
+            },
+            success: success,
+            error: Courier.prototype.OnError
+        });
+    };
     Courier.prototype.OnError = function (error) {
+        UpdateFormDigest(_spPageContextInfo.webServerRelativeUrl, _spFormDigestRefreshInterval);
         swal("Error", error.responseText, "error");
     };
     Courier.prototype.RestCalls = function (u, f) {
@@ -53,10 +75,18 @@ var Courier = (function () {
             success: function (data) {
                 f(data.d);
             },
-            error: this.OnError
+            error: Courier.prototype.OnError,
         });
     };
-    Courier.prototype.AllRequests = function () {
+    Courier.prototype.AllRequests = function (d) {
+        var admin = false;
+        if (d.results.length > 0) {
+            admin = true;
+            $("#sidebar .nav-item").removeClass("d-none");
+            $.each(d.results, function (i, j) {
+                Location = j.Location;
+            });
+        }
         var batchExecutor = new RestBatchExecutor(siteUrl, {
             "X-RequestDigest": $("#__REQUESTDIGEST").val()
         });
@@ -66,20 +96,40 @@ var Courier = (function () {
         batchRequest.headers = { accept: "application/json;odata=nometadata" };
         commands.push({
             id: batchExecutor.loadRequest(batchRequest),
-            title: "GetMySent"
+            title: "PopulateMySent"
         });
         batchRequest.endpoint = myReceivedUrl;
         batchRequest.headers = { accept: "application/json;odata=nometadata" };
         commands.push({
             id: batchExecutor.loadRequest(batchRequest),
-            title: "GetMyReceived"
+            title: "PopulateMyReceived"
         });
-        batchRequest.endpoint = siteUrl + listUrl + "('Approvers')/items?$select=Location&$AdminId eq " + _spPageContextInfo.userId;
-        batchRequest.headers = { accept: "application/json;odata=nometadata" };
-        commands.push({
-            id: batchExecutor.loadRequest(batchRequest),
-            title: "IsAdmin"
-        });
+        if (admin) {
+            batchRequest.endpoint =
+                courierurl +
+                    "?$select=Id,PackageType,Project,Origin,Destination," +
+                    "Description,SendingAdminStatus,Courier,CourierStatus,ReceivingAdminStatus,RecipientStatus," +
+                    "Recipient/Title,Author/Title,Quantity&$expand=Recipient,Author&$filter=Origin eq '" +
+                    Location +
+                    "'";
+            batchRequest.headers = { accept: "application/json;odata=nometadata" };
+            commands.push({
+                id: batchExecutor.loadRequest(batchRequest),
+                title: "PopulateAdminSend"
+            });
+            batchRequest.endpoint =
+                courierurl +
+                    "?$select=Id,PackageType,Project,Origin,Destination," +
+                    "Description,SendingAdminStatus,Courier,CourierStatus,ReceivingAdminStatus,RecipientStatus," +
+                    "Recipient/Title,Author/Title,Quantity&$expand=Author,Recipient&$filter= Destination eq '" +
+                    Location +
+                    "'";
+            batchRequest.headers = { accept: "application/json;odata=nometadata" };
+            commands.push({
+                id: batchExecutor.loadRequest(batchRequest),
+                title: "PopulateReport"
+            });
+        }
         batchExecutor
             .executeAsync()
             .done(function (result) {
@@ -87,26 +137,28 @@ var Courier = (function () {
                 var command = $.grep(commands, function (c) {
                     return v.id === c.id;
                 });
-                if (command[0].title === "GetMySent") {
+                if (command[0].title === "PopulateMySent") {
                     Courier.prototype.PopulateMySent(v.result.result.value);
                 }
-                if (command[0].title === "GetMyReceived") {
+                if (command[0].title === "PopulateMyReceived") {
                     Courier.prototype.PopulateMyReceived(v.result.result.value);
                 }
-                if (command[0].title === "IsAdmin") {
-                    Courier.prototype.IsAdmin(v.result.result.value);
+                if (command[0].title === "PopulateAdminSend") {
+                    Courier.prototype.PopulateAdminSend(v.result.result.value);
+                }
+                if (command[0].title === "PopulateReport") {
+                    Courier.prototype.PopulateReport(v.result.result.value);
                 }
             });
         })
             .fail(function (err) {
-            this.OnError(err);
+            Courier.prototype.OnError(err);
         });
     };
     Courier.prototype.GetAllUsers = function () {
         var memberUrl = parentUrl +
             "/_api/web/sitegroups/getbyname('EGPAF Members')/users?$select=Title,Id";
-        var userList;
-        this.RestCalls(memberUrl, populateRecipient);
+        Courier.prototype.RestCalls(memberUrl, populateRecipient);
         function populateRecipient(d) {
             var content = "";
             if (d.results) {
@@ -114,15 +166,21 @@ var Courier = (function () {
                     content += "<option value=" + j.Id + ">" + j.Title + "</option>";
                 });
             }
-            $("#recipient").empty().append(content).chosen();
+            $("#recipient")
+                .empty()
+                .append(content)
+                .chosen();
         }
     };
-    Courier.prototype.GetParentDigest = function (callback) {
+    Courier.prototype.GetParentDigest = function () {
         return $.ajax({
             url: parentUrl + "/_api/contextinfo",
             method: "POST",
             contentType: "application/json;odata=verbose",
-            headers: { "Accept": "application/json;odata=verbose", "X-RequestDigest": $("#__REQUESTDIGEST").val() },
+            headers: {
+                Accept: "application/json;odata=verbose",
+                "X-RequestDigest": $("#__REQUESTDIGEST").val()
+            }
         });
     };
     Courier.prototype.GetParentRequests = function () {
@@ -162,7 +220,7 @@ var Courier = (function () {
             });
         })
             .fail(function (err) {
-            this.OnError(err);
+            Courier.prototype.OnError(err);
         });
     };
     Courier.prototype.GetCurrentParcelLocation = function (courierdata) {
@@ -181,26 +239,6 @@ var Courier = (function () {
         }
         return parcelStatus;
     };
-    Courier.prototype.GetMySent = function (d) {
-        var courierlist;
-        $.each(d, function (i, j) {
-            var courier = new Courier();
-            courier.PackageType = d.PackageType;
-            courier.Project = d.Project;
-            courier.Origin = d.Origin;
-            courier.Destination = d.Destination;
-            courier.Description = d.Description;
-            courier.SendingAdminStatus = d.SendingAdminStatus;
-            courier.Sender = _spPageContextInfo.userDisplayName;
-            courier.Courier = d.Courier;
-            courier.CourierStatus = d.CourierStatus;
-            courier.ReceivingAdminStatus = d.ReceivingAdminStatus;
-            courier.RecipientStatus = d.RecipientStatus;
-            courier.Recipient = d.Recipient.Title;
-            courierlist.push(courier);
-        });
-        this.LoadMySentParcels(courierlist);
-    };
     Courier.prototype.PrepSendForm = function () {
         $("#sender").val(_spPageContextInfo.userDisplayName);
         $("#packagetype").chosen();
@@ -212,7 +250,7 @@ var Courier = (function () {
                 .data("formValidation")
                 .validate();
         });
-        this.ValidateCourier();
+        Courier.prototype.ValidateCourier();
     };
     Courier.prototype.SendFormData = function () {
         var courier = new Courier();
@@ -222,11 +260,12 @@ var Courier = (function () {
         courier.RecipientId = $("#recipient").val();
         courier.Origin = $("#origin").val();
         courier.Description = $("#description").val();
+        courier.Quantity = $("#quantity").val();
         courier.PostCourier(function () {
             swal({
                 title: "Success!",
                 text: "Courier request submitted successfully",
-                type: "success"
+                icon: "success"
             }).then(function () {
                 $("#courierform input:not(:disabled),#courierform textarea").val("");
             });
@@ -239,70 +278,70 @@ var Courier = (function () {
             icon: {
                 valid: "fa fa-check",
                 invalid: "fa fa-times",
-                validating: "fa fa-refresh"
+                validating: "fa fa-refresh",
             },
             fields: {
                 package: {
                     row: ".col-xs-4",
                     validators: {
                         notEmpty: {
-                            message: "The package is required"
-                        }
-                    }
+                            message: "The package is required",
+                        },
+                    },
                 },
                 sender: {
                     row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The sender is required"
-                        }
-                    }
+                        },
+                    },
                 },
                 description: {
                     row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The description is required"
-                        }
-                    }
+                        },
+                    },
                 },
                 destination: {
                     row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The destination is required"
-                        }
-                    }
+                        },
+                    },
                 },
                 recipient: {
                     row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The recipient is required"
-                        }
-                    }
+                        },
+                    },
                 },
                 origin: {
                     row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The origin is required"
-                        }
-                    }
+                        },
+                    },
                 },
                 project: {
                     row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The Project is required"
-                        }
-                    }
-                }
-            }
+                        },
+                    },
+                },
+            },
         })
             .on("success.form.fv", function (e) {
             e.preventDefault();
-            this.SendFormData();
+            Courier.prototype.SendFormData();
         });
         $("#officeadmin").formValidation({
             framework: "bootstrap",
@@ -372,7 +411,7 @@ var Courier = (function () {
                     row: ".col-xs-4",
                     validators: {
                         notEmpty: {
-                            message: "The location is required"
+                            message: "The location is required",
                         }
                     }
                 },
@@ -404,18 +443,18 @@ var Courier = (function () {
                     row: ".col-xs-4",
                     validators: {
                         notEmpty: {
-                            message: "The Date is required"
+                            message: "The Date is required",
                         }
-                    }
-                }
-            }
+                    },
+                },
+            },
         });
         $("#officeadmin2").formValidation({
             framework: "bootstrap",
             icon: {
                 valid: "fa fa-check",
                 invalid: "fa fa-times",
-                validating: "fa fa-refresh"
+                validating: "fa fa-refresh",
             },
             fields: {
                 office2_package: {
@@ -423,8 +462,8 @@ var Courier = (function () {
                     validators: {
                         notEmpty: {
                             message: "The package is required"
-                        }
-                    }
+                        },
+                    },
                 },
                 office2_sender: {
                     row: ".col-xs-4",
@@ -432,7 +471,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The sender is required"
                         }
-                    }
+                    },
                 },
                 office2_description: {
                     row: ".col-xs-4",
@@ -440,7 +479,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The description is required"
                         }
-                    }
+                    },
                 },
                 office2_transittype: {
                     row: ".col-xs-4",
@@ -448,7 +487,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The Transit Type is required"
                         }
-                    }
+                    },
                 },
                 office2_waybillno: {
                     row: ".col-xs-4",
@@ -456,7 +495,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The Waybill Number is required"
                         }
-                    }
+                    },
                 },
                 office2_destination: {
                     row: ".col-xs-4",
@@ -464,7 +503,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The destination is required"
                         }
-                    }
+                    },
                 },
                 office2_recipient: {
                     row: ".col-xs-4",
@@ -472,7 +511,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The recipient is required"
                         }
-                    }
+                    },
                 },
                 office2_location: {
                     row: ".col-xs-4",
@@ -480,7 +519,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The location is required"
                         }
-                    }
+                    },
                 },
                 office2_project: {
                     row: ".col-xs-4",
@@ -488,7 +527,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The Project is required"
                         }
-                    }
+                    },
                 },
                 office2_producttype: {
                     row: ".col-xs-4",
@@ -496,7 +535,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The Product Type is required"
                         }
-                    }
+                    },
                 },
                 office2_weight: {
                     row: ".col-xs-4",
@@ -504,7 +543,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The Weight is required"
                         }
-                    }
+                    },
                 },
                 office2_date: {
                     row: ".col-xs-4",
@@ -512,16 +551,16 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The Date is required"
                         }
-                    }
-                }
-            }
+                    },
+                },
+            },
         });
         $("#receivertab").formValidation({
             framework: "bootstrap",
             icon: {
                 valid: "fa fa-check",
                 invalid: "fa fa-times",
-                validating: "fa fa-refresh"
+                validating: "fa fa-refresh",
             },
             fields: {
                 rpackage: {
@@ -530,7 +569,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The package is required"
                         }
-                    }
+                    },
                 },
                 rsender: {
                     row: ".col-xs-4",
@@ -538,7 +577,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The sender is required"
                         }
-                    }
+                    },
                 },
                 rdescription: {
                     row: ".col-xs-4",
@@ -546,7 +585,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The description is required"
                         }
-                    }
+                    },
                 },
                 rtransittype: {
                     row: ".col-xs-4",
@@ -554,7 +593,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The Transit Type is required"
                         }
-                    }
+                    },
                 },
                 r_waybillno: {
                     row: ".col-xs-4",
@@ -562,7 +601,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The Waybill Number is required"
                         }
-                    }
+                    },
                 },
                 rdestination: {
                     row: ".col-xs-4",
@@ -570,7 +609,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The destination is required"
                         }
-                    }
+                    },
                 },
                 rrecipient: {
                     row: ".col-xs-4",
@@ -578,7 +617,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The recipient is required"
                         }
-                    }
+                    },
                 },
                 rlocation: {
                     row: ".col-xs-4",
@@ -586,7 +625,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The location is required"
                         }
-                    }
+                    },
                 },
                 rproject: {
                     row: ".col-xs-4",
@@ -594,7 +633,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The Project is required"
                         }
-                    }
+                    },
                 },
                 rproducttype: {
                     row: ".col-xs-4",
@@ -602,7 +641,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The Product Type is required"
                         }
-                    }
+                    },
                 },
                 rweight: {
                     row: ".col-xs-4",
@@ -610,7 +649,7 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The Weight is required"
                         }
-                    }
+                    },
                 },
                 rdate: {
                     row: ".col-xs-4",
@@ -618,9 +657,9 @@ var Courier = (function () {
                         notEmpty: {
                             message: "The Date is required"
                         }
-                    }
-                }
-            }
+                    },
+                },
+            },
         });
     };
     Courier.prototype.PopulateLocations = function (d) {
@@ -628,20 +667,26 @@ var Courier = (function () {
         $.each(d, function (i, j) {
             content += "<option>" + j.Title + "</option>";
         });
-        $("#origin,#destination").empty().append(content).chosen();
+        $("#origin,#destination")
+            .empty()
+            .append(content)
+            .chosen();
     };
     Courier.prototype.PopulateProjects = function (d) {
         var content = "";
         $.each(d, function (i, j) {
             content += "<option>" + j.Title + "</option>";
         });
-        $("#project").empty().append(content).chosen();
+        $("#project")
+            .empty()
+            .append(content)
+            .chosen();
     };
     Courier.prototype.PopulateMySent = function (d) {
         var tableRow = "";
         $.each(d, function (key, val) {
-            var parcelLocation = this.GetCurrentParcelLocation(val);
-            tableRow += "<tr><td> " + val.PackageType + " </td><td> " + val.Project + " </td><td> " + val.Origin + " </td><td> " + val.Recipient + " </td><td> " + val.Destination + "</td><td> " + val.Description + " </td><td> " + parcelLocation + " </td></tr>";
+            var parcelLocation = Courier.prototype.GetCurrentParcelLocation(val);
+            tableRow += "<tr><td> " + val.PackageType + " </td><td> " + val.Quantity + " </td><td> " + val.Project + " </td><td> " + val.Origin + " </td><td> " + val.Recipient.Title + " </td><td> " + val.Destination + "</td><td> " + val.Description + " </td><td> " + parcelLocation + " </td></tr>";
         });
         $("#sentTable>tbody").html(tableRow);
         $("#sentTable").DataTable({ responsive: true });
@@ -649,21 +694,261 @@ var Courier = (function () {
     Courier.prototype.PopulateMyReceived = function (d) {
         var tableRow = "";
         $.each(d, function (key, val) {
-            var parcelLocation = this.GetCurrentParcelLocation(val);
-            tableRow += "<tr><td> " + val.PackageType + " </td><td> " + val.Project + " </td><td> " + val.Sender + " </td><td> " + val.Origin + " </td><td> " + val.Destination + "</td><td> " + val.Description + " </td><td> " + parcelLocation + " </td></tr>";
+            var parcelLocation = Courier.prototype.GetCurrentParcelLocation(val);
+            tableRow += "<tr><td> " + val.PackageType + " </td><td> " + val.Quantity + " </td><td> " + val.Project + " </td><td> " + val.Author.Title + " </td><td> " + val.Origin + " </td><td> " + val.Destination + "</td><td> " + val.Description + " </td><td> " + parcelLocation + " </td></tr>";
         });
         $("#receivedTable>tbody").html(tableRow);
         tableRow = "";
         $("#receivedTable").DataTable({ responsive: true });
     };
-    Courier.prototype.IsAdmin = function (d) {
-        if (d.length <= 0) {
-            $("#sidebar .nav-item").eq(3).hide();
-            $("#sidebar .nav-item").eq(4).hide();
+    Courier.prototype.PopulateAdminReceived = function (d) {
+        var tableRow = "";
+        $.each(d, function (key, val) {
+            if (val.CourierStatus === "Received" && val.RecipientStatus === "Pending") {
+                var btnAcknowledge = "<a href=\"#\" data-id=\"" + val.Id +
+                    "\" data-from=\"" + val.Author.Title + "\" class=\"btn btn-acknowledge btn-primary\">Acknowledge</a>";
+                if (val.SendingAdminStatus === "Received") {
+                    btnAcknowledge = "Received on " + moment(val.ReceivingAdminDate).format("DD/MM/YYYY");
+                }
+                tableRow += "<tr><td>" + val.PackageType + "</td><td>" + val.Quantity + "</td>\n                        <td>" + val.Author.Title + "</td><td> " + val.Recipient.Title + " </td><td> " + val.Origin + " </td><td> " + val.Description + " </td><td> " + val.Project + " </td>\n                        <td>" + val.Courier + "</td>\n                        <td>" + btnAcknowledge + "</td>\n                        <td><a href=\"#\" data-id=\"" + val.Id + "\" data-from=\"" + val.Recipient.Title + "\" class=\"btn btn-assign btn-primary\">Assign</a></td>\n                        </tr>";
+            }
+        });
+        $("#adminreceivetable>tbody").html(tableRow);
+        tableRow = "";
+        $("#adminreceivetable").DataTable({ responsive: true });
+    };
+    Courier.prototype.PopulateAdminSend = function (d) {
+        var tableRow = "";
+        $.each(d, function (key, val) {
+            if (d.length > 0) {
+                var btnAssign = "<a href=\"#\" data-id=\"" + val.Id + "\" data-from=\"" + val.Author.Title + "\" class=\"btn btn-acknowledge btn-primary\">Acknowledge</a>";
+                if (val.SendingAdminStatus === "Received") {
+                    btnAssign = "Received on " + moment(val.RecipientDate).format("DD/MM/YYYY");
+                }
+                tableRow += "<tr><td> " + val.PackageType + " </td><td> " + val.Quantity + " </td>\n                        <td> " + val.Author.Title + " </td><td> " + val.Recipient.Title + " </td><td> " + val.Destination + "</td><td> " + val.Description + " </td><td> " + val.Project + " </td>\n        <td>" + btnAssign + "</td>\n        <td><a href=\"#\" data-id=\"" + val.Id + "\" class=\"btn btn-assign btn-primary\">Assign</a></td>\n        </tr>";
+            }
+        });
+        $("#adminsendtable>tbody").html(tableRow);
+        tableRow = "";
+        $("#adminsendtable").DataTable({ responsive: true });
+    };
+    Courier.prototype.PopulateReport = function (d) {
+        console.log(d);
+        var tableRow = "";
+        if (d.length > 0) {
+            Courier.prototype.PopulateAdminReceived(d);
+            $.each(d, function (key, val) {
+                var courier = "";
+                if (val.Courier) {
+                    courier = val.Courier;
+                }
+                var parcelLocation = Courier.prototype.GetCurrentParcelLocation(val);
+                tableRow += "<tr><td> " + val.PackageType + " </td><td> " + val.Quantity + " </td><td> " + val.Project + "</td>\n                <td> " + val.Author.Title + " </td><td> " + val.Recipient.Title + " </td>\n                <td> " + val.Origin + "</td><td> " + val.Destination + "</td>\n                <td> " + parcelLocation + " </td><td><a href=\"#\" class=\"btn btn-primary btn-view\" data-id=\"" + val.Id + "\">View</a></td></tr>";
+            });
         }
-        else {
-            console.log(d);
+        $("#reportsTable>tbody").html(tableRow);
+        tableRow = "";
+        $("#reportsTable").DataTable({
+            responsive: true,
+            initComplete: function () {
+                var cols = [0, 2, 3, 4, 5, 6, 7];
+                for (var i = 0; i < cols.length; i++) {
+                    this.api().column(cols[i]).every(function () {
+                        var column = this;
+                        var select = $('<select class="select"><option value=""></option></select>')
+                            .appendTo($(column.footer()).empty()).on("change", function () {
+                            var val = $.fn.dataTable.util.escapeRegex($(this).val());
+                            column.search(val ? "^" + val + "$" : "", true, false).draw();
+                        });
+                        column.data().unique().sort()
+                            .each(function (k, v) {
+                            select.append('<option value="' + k + '">' + k + "</option>");
+                        });
+                    });
+                }
+            },
+        });
+    };
+    Courier.prototype.GetIsApprover = function () {
+        var approverUrl = siteUrl +
+            listUrl +
+            "('Approvers')/items?$select=Location&$AdminId eq " +
+            _spPageContextInfo.userId;
+        Courier.prototype.RestCalls(approverUrl, Courier.prototype.AllRequests);
+    };
+    Courier.prototype.AcknowledgeReceiptFromUser = function (id, from) {
+        swal({
+            title: "Are you sure?",
+            text: "You are about to accept the package from " + from,
+            icon: "warning",
+            buttons: true,
+        }).then(function (result) {
+            if (result) {
+                ReceiveParcelFromUser();
+            }
+        });
+        function ReceiveParcelFromUser() {
+            var item = {
+                __metadata: { type: "SP.Data.CourierListItem" },
+                SendingAdminStatus: "Received",
+                SendingAdminDate: moment().toISOString(),
+            };
+            Courier.prototype.UpdateJson(courierurl + "(" + id + ")", item, success);
+            function success() {
+                swal({
+                    title: "success",
+                    text: "Package received Successfully",
+                    icon: "success",
+                }).then(function (result) {
+                    location.reload();
+                });
+            }
+        }
+    };
+    Courier.prototype.AcknowledgeReceiptFromCourier = function (id, from) {
+        swal({
+            title: "Are you sure?",
+            text: "You are about to accept the package from " + from,
+            icon: "warning",
+            buttons: true,
+        }).then(function (result) {
+            if (result) {
+                ReceiveFromCourier();
+            }
+        });
+        function ReceiveFromCourier() {
+            var item = {
+                __metadata: { type: "SP.Data.CourierListItem" },
+                ReceivingAdminStatus: "Received",
+                ReceivingAdminDate: moment().toISOString(),
+            };
+            Courier.prototype.UpdateJson(courierurl + "(" + id + ")", item, success);
+            function success() {
+                swal({
+                    title: "Success",
+                    text: "Package received Successfully",
+                    icon: "success",
+                }).then(function (result) {
+                    location.reload();
+                });
+            }
+        }
+    };
+    Courier.prototype.GetPackage = function (id) {
+        var packageUrl = courierurl +
+            "?$select=PackageType,Project,Origin,Destination,WayBillNo,Weight,Quantity," +
+            "Description,Courier,Author/Title," +
+            "Recipient/Title&$expand=Recipient,Author&$filter=Id eq " +
+            id;
+        Courier.prototype.RestCalls(packageUrl, PopulateSendModal);
+        $("#adminModal").modal();
+        $("#hidden-id").val(id);
+        function PopulateSendModal(d) {
+            if (d.results.length > 0) {
+                $.each(d.results, function (i, j) {
+                    $(".packagetype").text(j.PackageType);
+                    $(".project").text(j.Project);
+                    $(".quantity").text(j.Quantity);
+                    $(".sender").text(j.Author.Title);
+                    $(".recipient").text(j.Recipient.Title);
+                    $(".senderLocation").text(j.Origin);
+                    $(".receiverLocation").text(j.Destination);
+                    $(".description").text(j.Description);
+                    if (j.Courier) {
+                        $("#vehicletype").val(j.Courier);
+                        $("#waybillNo").val(j.WayBillNo);
+                        $("#weightModal").val(j.Weight);
+                        $("#vehicletype,#waybillNo,#weightModal").prop("disabled", true);
+                        $("#btn-send-courier").hide();
+                    }
+                });
+            }
+        }
+    };
+    Courier.prototype.GiveRecipient = function (id, from) {
+        swal({
+            title: "Are you sure?",
+            text: "You are about to hand over the package to " + from,
+            icon: "warning",
+            buttons: true,
+        }).then(function (result) {
+            if (result) {
+                GivePackageRecipient();
+            }
+        });
+        function GivePackageRecipient() {
+            var item = {
+                __metadata: { type: "SP.Data.CourierListItem" },
+                RecipientStatus: "Approved",
+                RecipientDate: moment().toISOString(),
+            };
+            Courier.prototype.UpdateJson(courierurl + "(" + id + ")", item, success);
+            function success() {
+                swal({
+                    title: "Success",
+                    text: "Package passed to recipient successfully",
+                    icon: "success",
+                }).then(function (result) {
+                    location.reload();
+                });
+            }
+        }
+    };
+    Courier.prototype.AssignPackage = function () {
+        var item = {
+            __metadata: { type: "SP.Data.CourierListItem" },
+            Courier: $("#vehicletype").val(),
+            CourierStatus: "Received",
+            Weight: $("#weightModal").val(),
+            WayBillNo: $("#waybillNo").val(),
+            CourierDate: moment().toISOString(),
+        };
+        Courier.prototype.UpdateJson(courierurl + "(" + $("#hidden-id").val() + ")", item, success);
+        function success() {
+            swal({
+                title: "Success",
+                text: "Package sent successfully",
+                icon: "success",
+            }).then(function (result) {
+                location.reload();
+            });
         }
     };
     return Courier;
 }());
+$(document).ready(function () {
+    var courier = new Courier();
+    courier.PrepSendForm();
+    courier.GetParentDigest().then(function (d) {
+        parentDigest = d.d.GetContextWebInformation.FormDigestValue;
+        courier.GetParentRequests();
+    });
+    courier.GetAllUsers();
+    courier.GetIsApprover();
+    $("#adminsendtable").on("click", ".btn-acknowledge", function () {
+        var id = $(this).data("id");
+        var from = $(this).data("from");
+        courier.AcknowledgeReceiptFromUser(id, from);
+    });
+    $("#adminreceivetable").on("click", ".btn-acknowledge", function () {
+        var id = $(this).data("id");
+        var from = $(this).data("from");
+        courier.AcknowledgeReceiptFromCourier(id, from);
+    });
+    $("#adminsendtable").on("click", ".btn-assign", function () {
+        var id = $(this).data("id");
+        courier.GetPackage(id);
+    });
+    $("#adminreceivetable").on("click", ".btn-assign", function () {
+        var id = $(this).data("id");
+        var from = $(this).data("from");
+        courier.GiveRecipient(id, from);
+    });
+    $("#btn-send-courier").click(function () {
+        courier.AssignPackage();
+    });
+    $("#reportsTable").on("click", ".btn-view", function () {
+        var id = $(this).data("id");
+        courier.GetPackage(id);
+    });
+});

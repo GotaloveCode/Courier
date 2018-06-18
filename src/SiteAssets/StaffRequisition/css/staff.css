@@ -1,0 +1,112 @@
+﻿#staff_form{
+    margin-top: 25px;
+}
+#sidebar-img{
+    width: 200px;
+}
+h4#task_title{
+ margin-top: 10px;
+    color: #000;
+}
+.nav-pills .nav-link.active {
+    color: #fff;
+    background-color: #4d7c74;
+}
+.nav-pills .nav-link {
+    color: #fff;
+    background-color: #e86b24;
+    margin-top: 8px;
+}
+.nav-pills .nav-link {
+    border-radius: .25rem;
+    height: 50px;
+}
+#v-pills-tab{
+    text-align: center;
+}
+.nav-pills .nav-link:hover {
+    color: #fff;
+    background-color: #4d7c74;
+}
+a.nav-link{
+        padding: 13px 15px;
+    font-size: 18px;
+}
+#side-tabs{
+        font-size: 18px;
+    margin-right: 15px;
+}
+tbody:before{
+    line-height: 1em;
+}
+label{
+     font-weight: 600;
+     margin-top: 5px;
+}
+row
+{
+    margin-bottom: 10px;
+}
+.table.table-responsive{
+        font-size: 13px;
+}
+.row{
+    margin-right: 0;
+    margin-left: 0;
+}
+input[type=text]{
+    padding: 6px 20px;
+    border-radius: .25rem;
+}
+#period{
+    padding: 7px 10px;
+}
+small.help-block{
+	color:red;
+}
+button#add{
+	background-color: #4d7c74;
+}
+button#remove{
+	background-color: #4d7c74;
+}
+.btn-danger{
+		border-color: transparent;
+
+}
+.btn-danger:hover{
+	border-color: transparent;
+}
+.btn-primary{
+		border-color: transparent;
+} 
+.btn-primary:hover{
+	border-color: transparent;
+}
+span#title{
+	font-weight:bold;
+}
+.sidebar a{
+    color: #fff;
+}
+.sidebar a:hover{
+    background-color: gray;
+}
+.sidebar .active{
+    background: gray;
+}
+.sidebar li {
+    margin: 3px;
+    padding: 5px;
+    background: #428076;
+}
+.sidebar-nav {
+    width: 100%;
+    border-top: 2px solid orangered;
+}
+.modal-xl{
+    max-width: 90%;
+}
+a.btn-primary{
+    color: #fff;
+}

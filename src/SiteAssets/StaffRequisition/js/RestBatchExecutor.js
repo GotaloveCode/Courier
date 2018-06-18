@@ -1,4 +1,4 @@
-
+﻿
 var RestBatchExecutor = (function () {
     function RestBatchExecutor(appWebUrl, authHeader) {
         this.changeRequests = [];

@@ -2,7 +2,7 @@ var gulp = require('gulp');
 
 var tslint = require('gulp-tslint');
 
-var tsc  = require("gulp-typescript");
+var tsc = require("gulp-typescript");
 
 var tsProject = tsc.createProject("tsconfig.json");
 
@@ -18,17 +18,17 @@ var set = {
     "site": "https://egpafkenya.sharepoint.com/sites/egpafke/hr",
     "verbose": "true",
     "publish": "true",
-    "libraryPath":"SiteAssets",
-    // "cache": "true",
+    "libraryPath": "SiteAssets/Resource",
+    "cache": "true",
     // "startFolder": "SiteAssets/Resource"
 }
 
 
 gulp.task('default', function () {
-    return gulp.src('src/SiteAssets/Resource/*.*')
-        .pipe(watch('src/SiteAssets/Resource/*.*'))
+    return gulp.src('src/SiteAssets/Resource/**/*.*')
+        .pipe(watch('src/SiteAssets/Resource/**/*.*'))
         .pipe(spsync(set))
-        //.pipe(gulp.dest('build'))
+    //.pipe(gulp.dest('build'))
 });
 
 gulp.task('download', function () {
@@ -37,26 +37,26 @@ gulp.task('download', function () {
 
 });
 
-gulp.task("lint", function() {
+gulp.task("lint", function () {
     return gulp.src([
         "src/ts/**/**.ts"
     ])
-    .pipe(tslint({
-        formatter: "verbose" 
-    }))
-    .pipe(tslint.report());
-    
+        .pipe(tslint({
+            formatter: "verbose"
+        }))
+        .pipe(tslint.report());
+
 });
 
 
 
 
-gulp.task("build-app", function() {
+gulp.task("build-app", function () {
     return gulp.src([
-            "src/ts/**/**.ts",
-            "typings/main.d.ts/",
-            "source/interfaces/interfaces.d.ts"
-        ])
+        "src/ts/**/**.ts",
+        "typings/main.d.ts/",
+        "source/interfaces/interfaces.d.ts"
+    ])
         .pipe(tsProject)
         .js.pipe(gulp.dest("source/"));
 });

@@ -1,15 +1,16 @@
-$('#calendar').fullCalendar({
-    themeSystem: 'bootstrap4',
-    header: {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'month,agendaWeek,agendaDay'
-    },
-    navLinks: true, // can click day/week names to navigate views
-    selectable: true
-});
+
 $(document).ready(function () {
     initForm();
+    $('#calendar').fullCalendar({
+        themeSystem: 'bootstrap4',
+        header: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'month,agendaWeek,agendaDay'
+        },
+        navLinks: true, // can click day/week names to navigate views
+        selectable: true
+    });
     $('#reportstable').dataTable();
     $('#admintable').dataTable();
     $('#datepicker').datetimepicker({
@@ -19,22 +20,22 @@ $(document).ready(function () {
         tags: true
     });
 
-    $('#starttimepicker,#endtimepicker').datetimepicker({format: 'LT'});
+    $('#starttimepicker,#endtimepicker').datetimepicker({ format: 'LT' });
     $('#btnadd').on('click', function () {
-        $('#tableItems tr:last').after('<tr><td><input type="text" class="form-control" name="item[]" id="item"></td><td>\n' +
-            '                                                                    <div class="form-group">\n' +
-            '                                                                        <select name="unitofmeasure[]" id="unitOfmeasure" class="form-control input-sm unitOfmeasure">\n' +
-            '                                                                            <option></option>\n' +
-            '                                                                            <option>Pieces</option>\n' +
-            '                                                                            <option>Kgs</option>\n' +
-            '                                                                            <option>Litres</option>\n' +
-            '                                                                            <option>Pax</option>\n' +
-            '                                                                            <option>Reams</option>\n' +
-            '                                                                            <option>Packs</option>\n' +
-            '                                                                            <option>Tins</option>\n' +
-            '                                                                            <option>Packets</option>\n' +
-            '                                                                        </select>\n' +
-            '                                                                    </div></td><td><input type="number" name="number[]" id="number" class="form-control quantity"></td><td><input type="number" name="unit-cost[]" id="unit-cost" class="form-control unitcost"></td><td><input type="text" name="totalamount[]" id="totalamount" class="form-control subtotal" readonly></td></tr>');
+        $('#tableItems tr:last').after('<tr><td><input type="text" class="form-control" name="item[]" id="item"></td><td>' +
+            '<div class="form-group">' +
+            '    <select name="unitofmeasure[]" id="unitOfmeasure" class="form-control input-sm unitOfmeasure">' +
+            '    <option></option>' +
+            '    <option>Pieces</option>' +
+            '    <option>Kgs</option>' +
+            '    <option>Litres</option>' +
+            '    <option>Pax</option>' +
+            '    <option>Reams</option>' +
+            '    <option>Packs</option>' +
+            '    <option>Tins</option>' +
+            '    <option>Packets</option>' +
+            '    </select>' +
+            '</div></td><td><input type="number" name="number[]" id="number" class="form-control quantity"></td><td><input type="number" name="unit-cost[]" id="unit-cost" class="form-control unitcost"></td><td><input type="text" name="totalamount[]" id="totalamount" class="form-control subtotal" readonly></td></tr>');
         $itemoption = $('#tableItems tr:last').find('[name="item[]"]');
         $unitoption = $('#tableItems tr:last').find('[name="unitofmeasure[]"]');
         $numberoption = $('#tableItems tr:last').find('[name="number[]"]');
