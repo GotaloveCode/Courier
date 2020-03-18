@@ -190,7 +190,7 @@ label{
     color: #e86b24;
 }
 
-.btn-primary-1{
+.btn-primary-1,.btn-primary-1:hover{
     background: #f59730;
     color: #fff;
 }
@@ -199,7 +199,9 @@ label{
     background: #428076;
     color: #fff;
 }
-
+a.btn-primary{
+    color: #fff;
+}
 .fileUpload {
     background-color: #337ab7;
     border-color: #2e6da4;

@@ -2,6 +2,8 @@ var listUrl = "/_api/web/lists/getbytitle";
 var staffurl = _spPageContextInfo.webAbsoluteUrl +
     listUrl +
     "('StaffRequisition')/items";
+var parentUrl = "https://egpafkenya.sharepoint.com/sites/egpafke";
+var Role = "";
 var Interviewee = (function () {
     function Interviewee() {
     }
@@ -14,7 +16,6 @@ var Staff = (function () {
 }());
 var CRUD = (function () {
     function CRUD() {
-        this.parentUrl = "https://egpafkenya.sharepoint.com/sites/egpafke";
     }
     CRUD.prototype.PostJson = function (endpointUri, payload, success) {
         $.ajax({
@@ -24,7 +25,7 @@ var CRUD = (function () {
                 "X-RequestDigest": $("#__REQUESTDIGEST").val()
             },
             data: JSON.stringify(payload),
-            error: this.OnError,
+            error: CRUD.prototype.OnError,
             success: success,
             type: "POST",
             url: endpointUri
@@ -40,14 +41,17 @@ var CRUD = (function () {
                 Accept: "application/json;odata=verbose",
                 "X-RequestDigest": $("#__REQUESTDIGEST").val(),
                 "X-HTTP-Method": "MERGE",
-                "If-Match": "*"
+                "If-Match": "*",
             },
             success: success,
-            error: this.OnError
+            error: CRUD.prototype.OnError,
         });
     };
     CRUD.prototype.OnError = function (error) {
         swal("Error", error.responseText, "error");
+        if (error.status === 403) {
+            UpdateFormDigest(_spPageContextInfo.webServerRelativeUrl, _spFormDigestRefreshInterval);
+        }
     };
     CRUD.prototype.RestCalls = function (u, f) {
         return $.ajax({
@@ -57,88 +61,197 @@ var CRUD = (function () {
             success: function (data) {
                 f(data.d);
             },
-            error: this.OnError
+            error: CRUD.prototype.OnError
         });
     };
     CRUD.prototype.GetIsApprover = function () {
         var approverUrl = _spPageContextInfo.webAbsoluteUrl +
             listUrl +
-            "('StaffAdmin')/items?$select=Id&$filter=AdminId eq " +
+            "('StaffAdmin')/items?$select=Role&$filter=AdminId eq " +
             _spPageContextInfo.userId;
-        this.RestCalls(approverUrl, this.GetAdminRequests);
+        CRUD.prototype.RestCalls(approverUrl, CRUD.prototype.GetAdminRequests);
+    };
+    CRUD.prototype.GetFundingSources = function () {
+        var projectsUrl = "https://egpafkenya.sharepoint.com/sites/egpafke" +
+            listUrl +
+            "('Projects')/items?$select=Title&$orderby=Title asc";
+        CRUD.prototype.RestCalls(projectsUrl, success);
+        function success(d) {
+            var option = "<option val=' '></option>";
+            if (d.results.length > 0) {
+                $.each(d.results, function (i, j) {
+                    option += "<option val='" + j.Title + "'>" + j.Title + "</option>";
+                });
+            }
+            $("select.position_funding").html(option);
+        }
     };
     CRUD.prototype.GetAdminRequests = function (d) {
+        var IsAdmin = false;
         if (d.results.length > 0) {
+            IsAdmin = true;
+            $.each(d.results, function (k, v) {
+                Role += v.Role + ",";
+            });
             $("#sidebar .nav-item").removeClass("d-none");
+        }
+        var deptUrl = _spPageContextInfo.webAbsoluteUrl +
+            listUrl +
+            "('Department')/items?$select=Department&$orderby=Department asc";
+        CRUD.prototype.RestCalls(deptUrl, CRUD.prototype.PopulateDepartment);
+        var batchExecutor = new RestBatchExecutor(_spPageContextInfo.webAbsoluteUrl, {
+            "X-RequestDigest": $("#__REQUESTDIGEST").val()
+        });
+        var batchRequest = new BatchRequest();
+        var commands = [];
+        batchRequest.endpoint = deptUrl;
+        batchRequest.headers = { accept: "application/json;odata=nometadata" };
+        commands.push({
+            id: batchExecutor.loadRequest(batchRequest),
+            title: "PopulateDepartment",
+        });
+        if (IsAdmin) {
             var adminurl = staffurl +
-                "?$select=Id,DateNeeded,Author/Title,JobDescription,Department,SourcesOfPosting,PositionToFill,Status&$expand=Author";
-            CRUD.prototype.RestCalls(adminurl, populateTables);
-            function populateTables(dt) {
-                var rptrow, adminrow = "";
-                if (dt.results) {
-                    $.each(dt.results, function (i, j) {
-                        rptrow +=
+                "?$select=Id,DateNeeded,Author/Title,Department,SourcesOfPosting,PositionToFill,Status," +
+                "HRStatus,CountryDirectorStatus,FinanceStatus,SupervisorStatus,HeadOfOperationsStatus," +
+                "AttachmentFiles,AttachmentFiles/ServerRelativeUrl,AttachmentFiles/FileName&$expand=Author,AttachmentFiles";
+            batchRequest.endpoint = adminurl;
+            batchRequest.headers = { accept: "application/json;odata=nometadata" };
+            commands.push({
+                id: batchExecutor.loadRequest(batchRequest),
+                title: "populateTables",
+            });
+        }
+        else {
+            var adminurl = staffurl +
+                "?$select=Id,DateNeeded,Author/Title,Department,SourcesOfPosting,PositionToFill,Status," +
+                "HRStatus,CountryDirectorStatus,FinanceStatus,SupervisorStatus,HeadOfOperationsStatus," +
+                "AttachmentFiles,AttachmentFiles/ServerRelativeUrl,AttachmentFiles/FileName&$expand=Author,AttachmentFiles" +
+                "&$filter=SupervisorId eq " + _spPageContextInfo.userId;
+            batchRequest = new BatchRequest();
+            batchRequest.endpoint = adminurl;
+            batchRequest.headers = { accept: "application/json;odata=nometadata" };
+            commands.push({
+                id: batchExecutor.loadRequest(batchRequest),
+                title: "getSupervisor",
+            });
+        }
+        batchExecutor
+            .executeAsync()
+            .done(function (result) {
+            $.each(result, function (k, v) {
+                var command = $.grep(commands, function (c) {
+                    return v.id === c.id;
+                });
+                if (command[0].title === "populateTables") {
+                    populateTables(v.result.result.value);
+                }
+                if (command[0].title === "getSupervisor") {
+                    getSupervisor(v.result.result.value);
+                }
+                if (command[0].title === "PopulateDepartment") {
+                    CRUD.prototype.PopulateDepartment(v.result.result.value);
+                }
+            });
+        })
+            .fail(function (err) {
+            CRUD.prototype.OnError(err);
+        });
+        function populateTables(dt) {
+            var rptrow = "", adminrow = "";
+            if (dt) {
+                $.each(dt, function (i, j) {
+                    rptrow +=
+                        "<tr><td>" +
+                            moment(j.DateNeeded).format("DD/MM/YYYY") +
+                            "</td><td>" +
+                            j.Author.Title +
+                            "</td>" +
+                            "<td>" +
+                            CRUD.prototype.GetAttachmentLinks(j.AttachmentFiles) +
+                            "</td><td>" +
+                            j.Department +
+                            "</td><td>" +
+                            j.SourcesOfPosting +
+                            "</td><td>" +
+                            j.PositionToFill +
+                            "</td><td>" +
+                            j.Status +
+                            "</td><td><a href='#' class='btn btn-primary view-detail' data-id='" +
+                            j.Id +
+                            "'>View</a></td></tr>";
+                    if (j.Status !== "Approved" && j[CRUD.prototype.GetUserRoleStatus()] === "Pending") {
+                        adminrow +=
                             "<tr><td>" +
                                 moment(j.DateNeeded).format("DD/MM/YYYY") +
                                 "</td><td>" +
                                 j.Author.Title +
                                 "</td>" +
                                 "<td>" +
-                                j.JobDescription +
+                                CRUD.prototype.GetAttachmentLinks(j.AttachmentFiles) +
                                 "</td><td>" +
                                 j.Department +
                                 "</td><td>" +
                                 j.SourcesOfPosting +
-                                "</td><td>" +
-                                j.PositionToFill +
-                                "</td><td>" +
-                                j.Status +
-                                "</td><td><a href='#' class='btn btn-primary view-detail' data-id='" +
+                                "</td><td>" + j.PositionToFill + "</td><td>" +
+                                j.Status + "</td><td><a href='#' class='btn btn-primary view-detail' data-id='" +
                                 j.Id +
-                                "'>View Details</a></td></tr>";
-                        if (j.Status === "Pending") {
-                            adminrow +=
-                                "<tr><td>" +
-                                    moment(j.DateNeeded).format("DD/MM/YYYY") +
-                                    "</td><td>" +
-                                    j.Author.Title +
-                                    "</td>" +
-                                    "<td>" +
-                                    j.JobDescription +
-                                    "</td><td>" +
-                                    j.Department +
-                                    "</td><td>" +
-                                    j.SourcesOfPosting +
-                                    "</td><td>" +
-                                    j.PositionToFill +
-                                    "</td><td><a href='#' class='btn btn-primary view-detail' data-id='" +
-                                    j.Id +
-                                    "'>View Details</a></td></tr>";
-                        }
-                    });
-                }
-                $("#reportinfo>tbody").html(rptrow);
-                $("#admininfo>tbody").html(adminrow);
-                $("#admininfo,#reportinfo").dataTable({ responsive: true });
+                                "'>View</a></td></tr>";
+                    }
+                });
+            }
+            $("#reportinfo>tbody").html(rptrow);
+            $("#admininfo>tbody").html(adminrow);
+            $("#admininfo,#reportinfo").dataTable({ responsive: true });
+        }
+        function getSupervisor(dt) {
+            if (dt.length > 0) {
+                Role += "Supervisor";
+                $("#sidebar .nav-item").removeClass("d-none");
+                populateTables(dt);
             }
         }
     };
+    CRUD.prototype.GetUserRoleStatus = function () {
+        var status = "";
+        if (Role.indexOf("Supervisor") !== -1) {
+            status = "SupervisorStatus";
+        }
+        if (Role.indexOf("Finance") !== -1) {
+            status = "FinanceStatus";
+        }
+        if (Role.indexOf("Head Of Operations") !== -1) {
+            status = "HeadOfOperationsStatus";
+        }
+        if (Role.indexOf("Country Director") !== -1) {
+            status = "CountryDirectorStatus";
+        }
+        if (Role.indexOf("Human Resource") !== -1) {
+            status = "HRStatus";
+        }
+        return status;
+    };
     CRUD.prototype.GetAllUsers = function () {
-        var memberUrl = this.parentUrl +
+        var memberUrl = parentUrl +
             "/_api/web/sitegroups/getbyname('EGPAF Members')/users?$select=Title,Id";
-        this.RestCalls(memberUrl, populateUsers);
+        CRUD.prototype.RestCalls(memberUrl, populateUsers);
         function populateUsers(d) {
-            var content = "";
+            var content = "<option value=' '></option>";
             if (d.results) {
                 $.each(d.results, function (i, j) {
                     content += "<option value=" + j.Id + ">" + j.Title + "</option>";
                 });
             }
-            $("#hiring_manager,#dotting_line,#interviewer")
+            $("#dotting_line,#interviewer")
                 .empty()
-                .append(content)
-                .chosen();
+                .append(content);
+            $("#dotting_line,#interviewer").chosen({ allow_single_deselect: true });
         }
+    };
+    CRUD.prototype.UploadDocument = function (id) {
+        var listName = "StaffRequisition";
+        var fileInput = $("#doc_file");
+        CRUD.prototype.UploadFileSP(listName, id, fileInput[0].files[0]);
     };
     CRUD.prototype.PostStaff = function () {
         var staff = new Staff();
@@ -156,13 +269,12 @@ var CRUD = (function () {
         staff.DottingLineManagerId = $("#dotting_line").val();
         staff.Education = $("#education").val();
         staff.Experience = $("#experience").val();
-        staff.HiringManagerId = $("#hiring_manager").val();
-        staff.JobDescription = $("#description").val();
         staff.Knowledge = $("#knowledge").val();
-        staff.LengthOfContract =
-            $("input[name='number_length']").val() +
-                " " +
-                $("select[name='period']").val();
+        var numberval = $("input[name='number_length']").val();
+        if (numberval === "") {
+            numberval = 1;
+        }
+        staff.LengthOfContract = numberval + " " + $("select[name='period']").val();
         staff.OfficeSeatingLocation = $("#office_seating").val();
         staff.Position = $("input[name='radio']:checked").val();
         var pobudget = false;
@@ -178,8 +290,11 @@ var CRUD = (function () {
             __metadata: { type: "SP.Data.StaffRequisitionListItem" },
         };
         data = $.extend(data, staff);
-        this.PostJson(staffurl, data, postOtherData);
+        CRUD.prototype.PostJson(staffurl, data, postOtherData);
         function postOtherData(d) {
+            if ($("#doc_file").val() !== "") {
+                UploadDocument(d.d.Id);
+            }
             var batchExecutor = new RestBatchExecutor(_spPageContextInfo.webAbsoluteUrl, {
                 "X-RequestDigest": $("#__REQUESTDIGEST").val()
             });
@@ -235,10 +350,10 @@ var CRUD = (function () {
                     var command = $.grep(commands, function (c) {
                         return v.id === c.id;
                     });
-                    if (command[0].title === "postInterviewees1") {
+                    if (command[0].title === "postInterviewees0") {
                         swal("success", "Resource booked successfully", "success");
                     }
-                    if (command[0].title === "postFundingSources1") {
+                    if (command[0].title === "postFundingSources0") {
                         console.log(v.results.results.value);
                     }
                 });
@@ -250,9 +365,12 @@ var CRUD = (function () {
         var staffresUrl = staffurl +
             "?$select=Created,Author/Title,PositionToFill,Position,Department," +
             "OfficeSeatingLocation,DottingLineManager/Title,SourcesOfPosting,LengthOfContract," +
-            "JobDescription,PositionBudgeted,SiteLocation,HiringManager/Title,BeginningDate,AmountBudgeted," +
+            "PositionBudgeted,SiteLocation,BeginningDate,AmountBudgeted," +
             "ContigencyFundingRequest,DateNeeded,Knowledge,Skills,Abilities,Education,Experience," +
-            "Certificates,ReplacementFor,Comment,Status&$expand=Author,DottingLineManager,HiringManager&$Id=" +
+            "Certificates,ReplacementFor,Status,Id," +
+            "HRStatus,CountryDirectorStatus,FinanceStatus,SupervisorStatus,HeadOfOperationsStatus," +
+            "AttachmentFiles,AttachmentFiles/ServerRelativeUrl,AttachmentFiles/FileName" +
+            "&$expand=Author,AttachmentFiles,DottingLineManager&$filter=Id eq " +
             id;
         var intervUrl = _spPageContextInfo.webAbsoluteUrl +
             listUrl +
@@ -271,7 +389,7 @@ var CRUD = (function () {
         batchRequest.headers = { accept: "application/json;odata=nometadata" };
         commands.push({
             id: batchExecutor.loadRequest(batchRequest),
-            title: "getStaffRes"
+            title: "getStaffRes",
         });
         batchRequest.endpoint = intervUrl;
         batchRequest.headers = { accept: "application/json;odata=nometadata" };
@@ -283,7 +401,7 @@ var CRUD = (function () {
         batchRequest.headers = { accept: "application/json;odata=nometadata" };
         commands.push({
             id: batchExecutor.loadRequest(batchRequest),
-            title: "getFundingSources"
+            title: "getFundingSources",
         });
         batchExecutor
             .executeAsync()
@@ -309,7 +427,6 @@ var CRUD = (function () {
         function GetStaffRes(d) {
             if (d.length > 0) {
                 $.each(d, function (i, j) {
-                    $("#m-requester").text(j.Author.Title);
                     $("#m-created-date").text(moment(j.Created).format("DD-MM-YYYY"));
                     $("#m-meeting-date").text(moment(j.MeetingDate).format("DD-MM-YYYY"));
                     $("#position-to-fill").text(j.PositionToFill);
@@ -318,20 +435,20 @@ var CRUD = (function () {
                     $("#m-site-location").text(j.SiteLocation);
                     $("#m-department").text(j.Department);
                     $("#m-office").text(j.OfficeSeatingLocation);
-                    $("#m-hiring-manager").text(j.HiringManager.Title);
+                    $("#m-hiring-manager").text(j.Author.Title);
                     $("#m-dotting-line-manager").text(j.DottingLineManager.Title);
                     $("#m-posting-source").text(j.SourcesOfPosting);
-                    $("#m-job-description").text(j.JobDescription);
+                    $("#m-job-description").text(CRUD.prototype.GetAttachmentLinks(j.AttachmentFiles));
                     $("#m-length-of-contract").text(j.LengthOfContract);
                     var posbudget = "Yes";
                     if (!j.PositionBudgeted) {
                         posbudget = "No";
                         $("#m-contigency").text(j.ContigencyFundingRequest);
-                        $("#m-yes-budgeted,.").addClass("d-none");
+                        $("#m-yes-budgeted").addClass("d-none");
                     }
                     else {
                         $("#m-no-budgeted").removeClass("d-none");
-                        $("#m-amount-budgeted").text(j.AmountBudgeted);
+                        $("#m-amount-budgeted").text(addCommas(j.AmountBudgeted));
                         $("#m-beginning-date").text(moment(j.BeginningDate).format("DD-MM-YYYY"));
                     }
                     $("#m-position-budgeted").text(posbudget);
@@ -343,21 +460,80 @@ var CRUD = (function () {
                     $("#m-education").text(j.Education);
                     $("#m-experience").text(j.Experience);
                     $("#m-certificates").text(j.Certificates);
-                    if (j.Status === "Pending" && view === "Admin") {
-                        $("#btn-approve,#btn-reject").removeClass("d-none");
-                        $("#comment")
-                            .val(j.Comment)
-                            .prop("disabled", false);
+                    if (j.HRStatus === "Pending") {
+                        $("#reviewer-status").val("Human Resource");
                     }
-                    else {
-                        $("#btn-approve,#btn-reject").addClass("d-none");
-                        $("#comment")
-                            .val(j.Comment)
-                            .prop("disabled", true);
+                    if (j.CountryDirectorStatus === "Pending") {
+                        $("#reviewer-status").val("Country Director");
                     }
+                    if (j.HeadOfOperationsStatus === "Pending") {
+                        $("#reviewer-status").val("Head Of Operations");
+                    }
+                    if (j.FinanceStatus === "Pending") {
+                        $("#reviewer-status").val("Finance");
+                    }
+                    if (j.SupervisorStatus === "Pending") {
+                        $("#reviewer-status").val("Supervisor");
+                    }
+                    EnableApproverButton(j);
                 });
             }
             $("#reviewdetails").modal();
+        }
+        function EnableApproverButton(j) {
+            $("#btn-approve,#btn-reject").addClass("d-none");
+            $("#comment").val(j.Comment).prop("disabled", true);
+            if (Role.indexOf("Supervisor") !== -1
+                && j.SupervisorStatus === "Pending"
+                && view === "Admin") {
+                $("#btn-approve,#btn-reject").removeClass("d-none");
+                $("#comment")
+                    .val(j.Comment)
+                    .prop("disabled", false);
+            }
+            if (Role.indexOf("Finance") !== -1
+                && j.FinanceStatus === "Pending"
+                && j.SupervisorStatus === "Approved"
+                && view === "Admin") {
+                $("#btn-approve,#btn-reject").removeClass("d-none");
+                $("#comment")
+                    .val(j.Comment)
+                    .prop("disabled", false);
+            }
+            if (Role.indexOf("Head Of Operations") !== -1
+                && j.FinanceStatus === "Approved"
+                && j.HeadOfOperationsStatus === "Pending"
+                && view === "Admin") {
+                $("#btn-approve,#btn-reject").removeClass("d-none");
+                $("#comment")
+                    .val(j.Comment)
+                    .prop("disabled", false);
+            }
+            if (Role.indexOf("Country Director") !== -1
+                && j.HeadOfOperationsStatus === "Approved"
+                && j.CountryDirectorStatus === "Pending"
+                && view === "Admin") {
+                $("#btn-approve,#btn-reject").removeClass("d-none");
+                $("#comment")
+                    .val(j.Comment)
+                    .prop("disabled", false);
+            }
+            if (Role.indexOf("Human Resource") !== -1
+                && j.HRStatus === "Pending"
+                && j.CountryDirectorStatus === "Approved"
+                && view === "Admin") {
+                $("#btn-approve,#btn-reject").removeClass("d-none");
+                $("#comment")
+                    .val(j.Comment)
+                    .prop("disabled", false);
+            }
+            if (j.Status === "Approved"
+                && Role.indexOf("Human Resource") !== -1
+                && view === "Admin") {
+                $("#comment")
+                    .val(j.Comment)
+                    .prop("disabled", false);
+            }
         }
         function GetInterviewees(d) {
             if (d.length > 0) {
@@ -386,20 +562,61 @@ var CRUD = (function () {
             }
         }
     };
+    CRUD.prototype.GetAttachmentLinks = function (Attachments) {
+        var links = "";
+        $.each(Attachments, function (i, j) {
+            if (j.ServerRelativeUrl) {
+                links +=
+                    '<a target="_blank" href="' +
+                        j.ServerRelativeUrl +
+                        '"><span class="fa fa-paperclip"></span>' +
+                        j.FileName +
+                        "</a>";
+            }
+        });
+        return links;
+    };
     CRUD.prototype.UpdateStatus = function () {
         var status = $("#submit-type").val();
         var data = {
             __metadata: { type: "SP.Data.StaffRequisitionListItem" },
-            Status: status,
-            Comment: $("#comment").val(),
         };
-        this.UpdateJson(staffurl + "(" + $("#hidden-id").val() + ")", data, success);
+        if (status === "Rejected") {
+            data.Status = status;
+        }
+        ApproverStatus();
+        function ApproverStatus() {
+            switch ($("#reviewer-status").val()) {
+                case "Supervisor":
+                    data.SupervisorStatus = status;
+                    data.SupervisorComment = $("#comment").val();
+                    break;
+                case "Finance":
+                    data.FinanceStatus = status;
+                    data.FinanceComment = $("#comment").val();
+                    break;
+                case "Human Resource":
+                    data.HRStatus = status;
+                    data.Status = status;
+                    data.HRComment = $("#comment").val();
+                    break;
+                case "Head Of Operations":
+                    data.HeadOfOperationsStatus = status;
+                    data.HeadOfOperationsComment = $("#comment").val();
+                    break;
+                case "Country Director":
+                    data.CountryDirectorStatus = status;
+                    data.CountryDirectorComment = $("#comment").val();
+                    break;
+            }
+        }
+        CRUD.prototype.UpdateJson(staffurl + "(" + $("#hidden-id").val() + ")", data, success);
         function success() {
             if (status === "Approved") {
                 swal({
                     title: "Success",
                     text: "Request " + status + " successfully",
-                    type: "success"
+                    type: "success",
                 }, function () {
                     $("#reviewdetails").modal("hide");
                     location.reload();
@@ -409,13 +626,75 @@ var CRUD = (function () {
                 swal({
                     title: "Success",
                     text: "Request " + status + " successfully",
-                    type: "success"
+                    type: "success",
                 }, function () {
                     $("#reviewdetails").modal("hide");
                     location.reload();
                 });
             }
         }
+    };
+    CRUD.prototype.UploadFileSP = function (listName, id, file) {
+        function GetFileBuffer(docfile) {
+            var dfd = $.Deferred();
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                dfd.resolve(e.target.result);
+            };
+            reader.onerror = function (e) {
+                dfd.reject(e.target.error);
+            };
+            reader.readAsArrayBuffer(docfile);
+            return dfd.promise();
+        }
+        var deferred = $.Deferred();
+        GetFileBuffer(file).then(function (buffer) {
+            var bytes = new Uint8Array(buffer);
+            var binary = "";
+            for (var b = 0; b < bytes.length; b++) {
+                binary += String.fromCharCode(bytes[b]);
+            }
+            var scriptbase = _spPageContextInfo.webServerRelativeUrl + "/_layouts/15/";
+            console.log(" File size:" + bytes.length);
+            $.getScript(scriptbase + "SP.RequestExecutor.js", function () {
+                var createitem = new SP.RequestExecutor(_spPageContextInfo.webServerRelativeUrl);
+                createitem.executeAsync({
+                    url: _spPageContextInfo.webServerRelativeUrl +
+                        "/_api/web/lists/GetByTitle('" +
+                        listName +
+                        "')/items(" +
+                        id +
+                        ")/AttachmentFiles/add(FileName='" +
+                        file.name +
+                        "')",
+                    method: "POST",
+                    binaryStringRequestBody: true,
+                    body: binary,
+                    success: fsucc,
+                    error: ferr,
+                    state: "Update",
+                });
+                function fsucc(data) {
+                    console.log("File uploaded successfully");
+                    deferred.resolve(data);
+                }
+                function ferr(data) {
+                    console.log("error", "file not uploaded error", "error");
+                    deferred.reject(data);
+                }
+            });
+        }, function (err) {
+            deferred.reject(err);
+        });
+        return deferred.promise();
+    };
+    CRUD.prototype.PopulateDepartment = function (d) {
+        var option = "<option val=' '></option>";
+        $.each(d, function (i, j) {
+            option += "<option val='" + j.Department + "'>" + j.Department + "</option>";
+        });
+        $("#department").html(option).chosen({ width: "100%" });
+        $("#department").trigger("chosen:updated");
     };
     return CRUD;
 }());
@@ -455,13 +734,13 @@ var StaffUI = (function () {
                     confirmButtonClass: "btn-danger",
                     confirmButtonText: "Yes",
                     closeOnConfirm: false,
-                    showLoaderOnConfirm: true
+                    showLoaderOnConfirm: true,
                 }, function () {
                     CRUD.prototype.PostStaff();
                 });
             },
             onFinished: function (e, currentIndex) { },
-            labels: { finish: "Submit" }
+            labels: { finish: "Submit" },
         })
             .formValidation({
             framework: "bootstrap",
@@ -469,20 +748,20 @@ var StaffUI = (function () {
             icon: {
                 valid: "fa fa-ok",
                 invalid: "fa fa-remove",
-                validating: "fa fa-refresh"
+                validating: "fa fa-refresh",
             },
             fields: {
                 beginning_date: {
                     enabled: true,
                     validators: {
                         notEmpty: {
-                            message: "The date is required"
+                            message: "The date is required",
                         },
                         date: {
                             format: "DD/MM/YYYY",
-                            message: "The date is not valid"
-                        }
-                    }
+                            message: "The date is not valid",
+                        },
+                    },
                 },
                 replacement_date: {
                     validators: {
@@ -492,75 +771,54 @@ var StaffUI = (function () {
                         date: {
                             format: "DD/MM/YYYY",
                             message: "The date is not valid"
-                        }
-                    }
+                        },
+                    },
                 },
                 position_fill: {
                     validators: {
                         notEmpty: { message: "The position to fill is required" }
-                    }
+                    },
                 },
                 department: {
                     validators: {
                         notEmpty: { message: "The department name is required" }
-                    }
+                    },
                 },
                 location: {
                     validators: {
                         notEmpty: { message: "The Delivery location is required" }
-                    }
+                    },
                 },
                 site_location: {
                     validators: {
                         notEmpty: { message: "The site location is required" }
-                    }
+                    },
                 },
                 office_seating: {
                     validators: {
                         notEmpty: { message: "The office seating location is required" }
-                    }
-                },
-                hiring_manager: {
-                    validators: {
-                        notEmpty: { message: "The hiring manager is required" }
-                    }
-                },
-                dotting_line: {
-                    validators: {
-                        notEmpty: { message: "The dotting line manager is required" }
-                    }
+                    },
                 },
                 interviewer: {
                     validators: {
-                        notEmpty: { message: "The interviewer(s) is required" }
-                    }
+                        notEmpty: { message: "The interviewer(s) is required" },
+                    },
                 },
                 sources: {
                     validators: {
-                        notEmpty: { message: "The source(s) for posting is required" }
-                    }
-                },
-                description: {
-                    validators: {
-                        notEmpty: { message: "The job description is required" }
-                    }
+                        notEmpty: { message: "The source(s) for posting is required" },
+                    },
                 },
                 choose: {
-                    validators: { notEmpty: { message: "Choose on of the following" } }
-                },
-                amount_budget: {
-                    enabled: true,
-                    validators: {
-                        notEmpty: { message: "The amount budgeted is required" }
-                    }
+                    validators: { notEmpty: { message: "Choose one of the following" } },
                 },
                 contigency: {
                     enabled: true,
                     validators: {
                         notEmpty: {
-                            message: "The reason for contigency funding is required"
-                        }
-                    }
+                            message: "The reason for contigency funding is required",
+                        },
+                    },
                 },
                 replacement_for: {
                     validators: {
@@ -614,7 +872,7 @@ var StaffUI = (function () {
             icon: {
                 valid: "fa fa-check",
                 invalid: "fa fa-times",
-                validating: "fa fa-refresh"
+                validating: "fa fa-refresh",
             },
             fields: {
                 comment: {
@@ -642,12 +900,11 @@ var StaffUI = (function () {
             });
         });
         $("input[name=position_budget]").change(function () {
-            if (this.value === "No") {
+            if ($(this).val() === "No") {
                 $("#m-position-budgeted").text("No");
                 $(".label_no").removeClass("d-none");
                 $(".label_yes").addClass("d-none");
                 $("#requisitionform").formValidation("enableFieldValidators", "beginning_date", false);
-                $("#requisitionform").formValidation("enableFieldValidators", "amount_budget", false);
                 $("#requisitionform").formValidation("enableFieldValidators", "contigency", true);
                 $("#beginning_date,#amount_budget").val("");
             }
@@ -656,14 +913,13 @@ var StaffUI = (function () {
                 $(".label_yes").removeClass("d-none");
                 $(".label_no").addClass("d-none");
                 $("#requisitionform").formValidation("enableFieldValidators", "beginning_date", true);
-                $("#requisitionform").formValidation("enableFieldValidators", "amount_budget", true);
                 $("#requisitionform").formValidation("enableFieldValidators", "contigency", false);
                 $("#contigency").val("");
             }
         });
         $("#replacement_for").val("N/A");
         $("input[name=radio]").change(function () {
-            if (this.value === "New Hire") {
+            if ($(this).val() === "New Hire") {
                 $("#replacement_for").val("N/A");
             }
             else {
@@ -679,6 +935,7 @@ var StaffUI = (function () {
                 $(this).val("");
             }
         });
+        $("#hiring_manager").val(_spPageContextInfo.userDisplayName);
         $("#beginning_date").datetimepicker({
             format: "DD/MM/YYYY",
             widgetPositioning: {
@@ -697,23 +954,20 @@ var StaffUI = (function () {
         });
         var i = $("#tableItems tr").length;
         $("#add").click(function () {
-            $("#tableItems tr:last").after('<tr><td><div class="form-group">' +
-                '<input type="text" name="position_funding" class="form-control position_funding">' +
-                '</div></td><td><div class="form-group">' +
-                '<input type="number" name="by_source" class="form-control by_source">' +
-                "</div></td></tr>");
-            var $positionfundingoption = $("tableItems tr:last").find('[name ="position_funding[]"]');
-            var $bysourceoption = $("tableItems tr:last").find('[name ="by_source[]"]');
-            $("#requisitionform").formValidation("addField", $positionfundingoption);
-            $("#requisitionform").formValidation("addField", $bysourceoption);
+            var copyrow = $("#pos_fund_row").clone();
+            $("#tableItems tr:last").after(copyrow);
+            var positionfundingoption = $("tableItems tr:last").find('[name="position_funding[]"]');
+            var bysourceoption = $("tableItems tr:last").find('[name="by_source[]"]');
+            $("#requisitionform").formValidation("addField", positionfundingoption);
+            $("#requisitionform").formValidation("addField", bysourceoption);
             i++;
         });
         $("#remove").click(function () {
             if (i > 2) {
-                var $positionfundingoption = $("tableItems tr:last").find('[name ="position_funding[]"]');
-                var $bysourceoption = $("tableItems tr:last").find('[name ="by_source[]"]');
-                $("#requisitionform").formValidation("addField", $positionfundingoption);
-                $("#requisitionform").formValidation("addField", $bysourceoption);
+                var positionfundingoption = $("tableItems tr:last").find('[name="position_funding[]"]');
+                var bysourceoption = $("tableItems tr:last").find('[name="by_source[]"]');
+                $("#requisitionform").formValidation("addField", positionfundingoption);
+                $("#requisitionform").formValidation("addField", bysourceoption);
                 $("#tableItems tr:last").remove();
                 i--;
             }
@@ -751,9 +1005,9 @@ var StaffUI = (function () {
             var department = $("#department").val();
             var site_location = $("#site_location").val();
             var office_seating = $("#office_seating").val();
-            var hiring_manager = $("#hiring_manager").val();
-            var dotting_line = $("#dotting_line").val();
-            var interviewer = $("#interviewer").val();
+            var hiring_manager = _spPageContextInfo.userDisplayName;
+            var dotting_line = $("#dotting_line option:selected").text();
+            var interviewer = $("#interviewer option:selected").val();
             var sources = $("#sources").val();
             var description = $("#description").val();
             var length_of_contract = $("input[name='number_length']").val() +
@@ -849,4 +1103,12 @@ $(document).ready(function () {
     staffUI.prepForm();
     crud.GetAllUsers();
     crud.GetIsApprover();
+    crud.GetFundingSources();
+    $("input.upload").on("change", function () {
+        var path = $(this).val(), filename = path.substr(path.lastIndexOf("\\") + 1);
+        $(this)
+            .closest(".input-group")
+            .find(".inputFiles")
+            .val(filename);
+    });
 });

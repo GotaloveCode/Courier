@@ -91,7 +91,7 @@
                                                 <div class="form-group row">
                                                     <label class="control-label col-sm-4" for="hiring_manager">Hiring Manager</label>
                                                     <div class="col-sm-8">
-                                                        <select name="hiring_manager" id="hiring_manager" class="form-control"></select>
+                                                        <input name="hiring_manager" id="hiring_manager" class="form-control" readonly>
                                                     </div>
                                                 </div>
                                             </div>
@@ -99,7 +99,7 @@
                                                 <div class="form-group row">
                                                     <label class="control-label col-sm-4" for="dotting_line">Dotting Line Manager</label>
                                                     <div class="col-sm-8">
-                                                        <select name="dotting_line" id="dotting_line" class="form-control"></select>
+                                                        <select name="dotting_line" data-placeholder="Select dotting Manager" id="dotting_line" class="form-control"></select>
                                                     </div>
                                                 </div>
                                             </div>
@@ -117,7 +117,7 @@
                                                 <div class="form-group row">
                                                     <label class="control-label col-sm-4" for="sources">Sources for Posting</label>
                                                     <div class="col-sm-8">
-                                                        <input type="text" name="sources" id="sources" class="form-control">
+                                                        <textarea name="sources" id="sources" class="form-control"></textarea>
                                                     </div>
                                                 </div>
                                             </div>
@@ -127,7 +127,7 @@
                                                 <div class="form-group row">
                                                     <label class="control-label col-sm-4" for="department">Department</label>
                                                     <div class="col-sm-8">
-                                                        <input type="text" name="department" id="department" class="form-control">
+                                                        <select data-placeholder="Select department" name="department" id="department" class="form-control"></select>
                                                     </div>
                                                 </div>
                                             </div>
@@ -135,7 +135,13 @@
                                                 <div class="form-group row">
                                                     <label class="control-label col-sm-4" for="description">Job Description</label>
                                                     <div class="col-sm-8">
-                                                        <textarea name="description" id="description" class="form-control"></textarea>
+                                                        <div class="input-group">
+                                                            <input class="form-control inputFiles" disabled="disabled" placeholder="Upload File">
+                                                            <div class="fileUpload input-group-text">
+                                                                <span> Browse </span>
+                                                                <input id="doc_file" type="file" name="doc_file" class="upload">
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -164,23 +170,22 @@
                             <h3>Position Funding</h3>
                             <fieldset data-step="1" id="position_funding_details">
                                 <div class="row" id="funding source" name="funding_source">
-                                    <div class="col-md-2"></div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-8">
                                         <table width="100%" class="table table-responsive fundingItems" id="tableItems">
                                             <thead>
                                                 <th> Position Funding Source </th>
                                                 <th> % by source</th>
                                             </thead>
                                             <tbody>
-                                                <tr>
+                                                <tr id="pos_fund_row">
                                                     <td>
                                                         <div class="form-group">
-                                                            <input type="text" name="position_funding[]" id="position_funding" class="form-control position_funding">
+                                                            <select name="position_funding[]" class="form-control position_funding"></select>
                                                         </div>
                                                     </td>
                                                     <td>
                                                         <div class="form-group">
-                                                            <input type="number" name="by_source[]" id="by_source" class="form-control by_source">
+                                                            <input type="number" name="by_source[]" class="form-control by_source">
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -594,6 +599,7 @@
                                         <th>Department</th>
                                         <th>Sources for Posting</th>
                                         <th>Position to fill</th>
+                                        <th>Status</th>
                                         <th>View Details</th>
                                     </tr>
                                 </thead>
@@ -612,6 +618,7 @@
                             </div>
                             <div class="modal-body">
                                 <input type="hidden" id="hidden-id">
+                                <input type="hidden" id="reviewer-status">
                                 <input type="hidden" id="submit-type">
                                 <div class="row">
                                     <div class="col-md-12">
@@ -619,10 +626,6 @@
                                     </div>
                                 </div>
                                 <div class="row form-group">
-                                    <div class="col-md-4">
-                                        <label>Requester: </label>
-                                        <span id="m-requester"></span>
-                                    </div>
                                     <div class="col-md-4">
                                         <label>Date of Submission: </label>
                                         <span id="m-created-date"></span>

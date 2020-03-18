@@ -3,11 +3,11 @@
 <link href='https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.9.0/fullcalendar.min.css' rel='stylesheet' />
 <link href='https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.9.0/fullcalendar.print.min.css' rel='stylesheet' media='print'
 />
-<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.6/chosen.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/formvalidation@0.6.2-dev/dist/css/formValidation.min.css">
+<link rel="stylesheet" href="/sites/egpafke/hr/SiteAssets/Resource/css/steps.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tempusdominus-bootstrap-4/5.0.0/css/tempusdominus-bootstrap-4.min.css"
 />
-<link rel="stylesheet" href="/sites/egpafke/hr/SiteAssets/Resource/css/steps.css">
 <link rel="stylesheet" href="/sites/egpafke/hr/SiteAssets/Resource/css/main.css">
 <!--END OF STYLES-->
 
@@ -32,6 +32,11 @@
                                     <i class="fa fa-calendar"></i>&nbsp;Calendar
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#mybookingtab" data-toggle="tab">
+                                    <i class="fa fa-book"></i>&nbsp;My Bookings
+                                </a>
+                            </li>
                             <li class="nav-item d-none">
                                 <a href="#reportstab" class="nav-link" data-toggle="tab">
                                     <i class="fa fa-signal"></i>&nbsp;Reports</a>
@@ -53,8 +58,27 @@
                                     <h3>Requester Details</h3>
                                     <fieldset data-step=0>
                                         <div class="row">
+                                            <div class="form-group col-md-6">
+                                                <label for="department">Department</label>
+                                                <select class="form-control" data-placeholder="Select department .." name="department" id="department"></select>
+                                            </div>
                                             <div class="form-group col-md-6 col-sm-6 col-lg-6">
-                                                <label for="date">Date of Meeting</label>
+                                                <label for="requesterName">Name of Requester</label>
+                                                <input type="text" class="form-control" id="requesterName" name="requesterName" disabled>
+                                            </div>
+                                        </div>
+                                        <div class="row d-none" id="adddeptrow">
+                                            <div class="form-group col-md-6">
+                                                <label for="department">Department</label>
+                                                <input type="text" class="form-control" name="adddepartment" id="adddepartment">
+                                            </div>
+                                            <div class="form-group col-md-6 col-sm-6 col-lg-6">
+                                                <Button class="btn btn-primary" id="btnadddepartment" type="button">Add Department</Button>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="form-group col-md-6 col-sm-6 col-lg-6">
+                                                <label for="date">Meeting Date</label>
                                                 <div class="input-group date" id="datepicker" data-target-input="nearest">
                                                     <input type="text" name="date" id="date" class="form-control datetimepicker-input" data-target="#datepicker">
                                                     <div class="input-group-append" data-target="#datepicker" data-toggle="datetimepicker">
@@ -65,20 +89,18 @@
                                                 </div>
                                             </div>
                                             <div class="form-group col-md-6 col-sm-6 col-lg-6">
-                                                <label for="requesterName">Name of Requester</label>
-                                                <input type="text" class="form-control" id="requesterName" name="requesterName" disabled>
+                                                <label for="meetingName">Meeting Name</label>
+                                                <input type="text" class="form-control" id="meetingName" name="meetingName">
                                             </div>
                                         </div>
                                         <div class="row">
-                                            <div class="form-group col-md-6 col-sm-6 col-lg-6">
-                                                <label for="meetingName">Name of Meeting</label>
-                                                <input type="text" class="form-control" id="meetingName" name="meetingName">
+                                            <div class="form-group col-md-6">
+                                                <label for="location">Location</label>
+                                                <select class="form-control" data-placeholder="Select location .." name="location" id="location"></select>
                                             </div>
                                             <div class="form-group col-md-6 col-sm-6 col-lg-6">
                                                 <label>Room</label>
-                                                <select class="form-control" id="room" name="room">
-                                                    <option value="board">Board room</option>
-                                                </select>
+                                                <select class="form-control" data-placeholder="Select room .." id="room" name="room"></select>
                                             </div>
                                         </div>
                                         <div class="row">
@@ -341,7 +363,41 @@
                     <div class="tab-pane fade show" id="calendartab" role="tabpanel">
                         <div class="container">
                             <div class="row">
+                                <h3 class="border-bottom text-left">Calendar</h3>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4 form-group">
+                                    <label for="location_filter">Filter By Location</label>
+                                    <select class="form-control w-100" id="location_filter" name="location_filter">
+                                    </select>
+                                </div>
+                                <div class="col-md-4 form-group">
+                                    <label for="c_filter_room">Filter By Room</label>
+                                    <select class="form-control w-100" id="c_filter_room" name="c_filter_room">
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
                                 <div id="calendar"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade show" id="mybookingtab" role="tabpanel">
+                        <div class="container">
+                            <div class="row">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-striped table-hover" id="mybookingtable">
+                                        <thead>
+                                            <th>Date</th>
+                                            <th>Start</th>
+                                            <th>End</th>                                           
+                                            <th>Room</th>
+                                            <th>Location</th>
+                                            <th>View</th>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -401,6 +457,7 @@
                                         <thead>
                                             <th>Meeting</th>
                                             <th>Room</th>
+                                            <th>Location</th>
                                             <th>Booker</th>
                                             <th>Date</th>
                                             <th>Resources</th>
@@ -422,7 +479,7 @@
                                             <th>End</th>
                                             <th>Requester</th>
                                             <th>Room</th>
-                                            <th>Status</th>
+                                            <th>Location</th>
                                             <th>Attach Form</th>
                                             <th>View</th>
                                         </thead>
@@ -564,13 +621,94 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-primary d-none" id="btn-approve" type="button">Approve</button>
+                <!-- <button class="btn btn-primary d-none" id="btn-approve" type="button">Approve</button> -->
                 <button type="button" class="btn btn btn-danger" data-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
 </div>
 <!-- End of ApproveModal -->
+<div id="rescheduleModal" class="modal fade" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Change Booking</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="container">
+                    <div class="row form-group">
+                        <input type="hidden" id="ch-id">
+                        <div class="col-md-4">
+                            <label for="meetingTitle">Meeting Title: </label>
+                            <span id="ch-meeting-title"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="meetingTitle">Location: </label>
+                            <select class="form-control" name="ch-location" id="ch-location"></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="ch-room">Room</label>
+                            <select class="form-control" id="ch-room" name="ch-room"></select>
+                        </div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-md-4">
+                            <label>Meeting Date: </label>
+                            <div class="input-group date" id="meetingdatepicker" data-target-input="nearest">
+                                <input type="text" name="ch-meeting-date" id="ch-meeting-date" class="form-control datetimepicker-input" data-target="#meetingdatepicker">
+                                <div class="input-group-append" data-target="#meetingdatepicker" data-toggle="datetimepicker">
+                                    <span class="input-group-text">
+                                        <span class="fa fa-calendar"></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="ch-start">Start:</label>
+                            <div class="input-group date" id="startpicker" data-target-input="nearest">
+                                <input type="text" class="form-control datetimepicker-input" data-target="#startpicker" name="ch-start" id="ch-start" />
+                                <div class="input-group-append" data-target="#startpicker" data-toggle="datetimepicker">
+                                    <div class="input-group-text">
+                                        <i class="fa fa-clock-o"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="ch-end">End</label>
+                            <div class="input-group date" id="endpicker" data-target-input="nearest">
+                                <input type="text" class="form-control datetimepicker-input" data-target="#endpicker" name="ch-end" id="ch-end" />
+                                <div class="input-group-append" data-target="#endpicker" data-toggle="datetimepicker">
+                                    <div class="input-group-text">
+                                        <i class="fa fa-clock-o"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-md-4">
+                            <label for="">Meeting Duration:</label>
+                            <div id="ch-duration"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="">Meeting Room Availabillity:</label>
+                            <div id="ch-availability"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary-1" id="btn-cancel" type="button">Cancel Booking</button>
+                <button class="btn btn-primary" id="btn-reschedule" type="button">Reschedule</button>                
+                <button type="button" class="btn btn btn-danger" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 <!--SCRIPTS-->
 <script src="https://unpkg.com/sweetalert2@7.22.0/dist/sweetalert2.all.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-steps/1.1.0/jquery.steps.min.js"></script>
@@ -580,8 +718,9 @@
 <script src="https://cdn.jsdelivr.net/npm/formvalidation@0.6.2-dev/dist/js/framework/bootstrap.min.js"></script>
 <script type="text/javascript" src="https://cdn.datatables.net/v/bs4/dt-1.10.16/datatables.min.js"></script>
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/tempusdominus-bootstrap-4/5.0.0-alpha18/js/tempusdominus-bootstrap-4.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.6/chosen.jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.9.0/fullcalendar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/alasql/0.4.6/alasql.min.js"></script>
 <script src='/sites/egpafke/hr/SiteAssets/Resource/js/RestBatchExecutor.js'></script>
 <script src='/sites/egpafke/hr/SiteAssets/Resource/js/Resource.js'></script>
 <!--END OF SCRIPTS-->

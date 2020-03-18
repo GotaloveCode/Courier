@@ -160,7 +160,7 @@ var Courier = (function () {
             "/_api/web/sitegroups/getbyname('EGPAF Members')/users?$select=Title,Id";
         Courier.prototype.RestCalls(memberUrl, populateRecipient);
         function populateRecipient(d) {
-            var content = "";
+            var content = "<option value=' '></option>";
             if (d.results) {
                 $.each(d.results, function (i, j) {
                     content += "<option value=" + j.Id + ">" + j.Title + "</option>";
@@ -282,7 +282,6 @@ var Courier = (function () {
             },
             fields: {
                 package: {
-                    row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The package is required",
@@ -290,7 +289,6 @@ var Courier = (function () {
                     },
                 },
                 sender: {
-                    row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The sender is required"
@@ -298,7 +296,6 @@ var Courier = (function () {
                     },
                 },
                 description: {
-                    row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The description is required"
@@ -306,7 +303,6 @@ var Courier = (function () {
                     },
                 },
                 destination: {
-                    row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The destination is required"
@@ -314,7 +310,6 @@ var Courier = (function () {
                     },
                 },
                 recipient: {
-                    row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The recipient is required"
@@ -322,7 +317,6 @@ var Courier = (function () {
                     },
                 },
                 origin: {
-                    row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The origin is required"
@@ -330,7 +324,6 @@ var Courier = (function () {
                     },
                 },
                 project: {
-                    row: ".col-xs-4",
                     validators: {
                         notEmpty: {
                             message: "The Project is required"
@@ -663,9 +656,9 @@ var Courier = (function () {
         });
     };
     Courier.prototype.PopulateLocations = function (d) {
-        var content = "";
+        var content = "<option val=' '></option>";
         $.each(d, function (i, j) {
-            content += "<option>" + j.Title + "</option>";
+            content += "<option val='" + j.Title + "'>" + j.Title + "</option>";
         });
         $("#origin,#destination")
             .empty()
@@ -673,9 +666,9 @@ var Courier = (function () {
             .chosen();
     };
     Courier.prototype.PopulateProjects = function (d) {
-        var content = "";
+        var content = "<option val=' '></option>";
         $.each(d, function (i, j) {
-            content += "<option>" + j.Title + "</option>";
+            content += "<option val='" + j.Title + "'>" + j.Title + "</option>";
         });
         $("#project")
             .empty()

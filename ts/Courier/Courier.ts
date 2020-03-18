@@ -197,7 +197,7 @@ class Courier {
             "/_api/web/sitegroups/getbyname('EGPAF Members')/users?$select=Title,Id";
         Courier.prototype.RestCalls(memberUrl, populateRecipient);
         function populateRecipient(d: any) {
-            let content = "";
+            let content = "<option value=' '></option>";
             if (d.results) {
                 $.each(d.results, function (i, j) {
                     content += "<option value=" + j.Id + ">" + j.Title + "</option>";
@@ -331,7 +331,6 @@ class Courier {
                 },
                 fields: {
                     package: {
-                        row: ".col-xs-4",
                         validators: {
                             notEmpty: {
                                 message: "The package is required",
@@ -339,7 +338,6 @@ class Courier {
                         },
                     },
                     sender: {
-                        row: ".col-xs-4",
                         validators: {
                             notEmpty: {
                                 message: "The sender is required"
@@ -347,7 +345,6 @@ class Courier {
                         },
                     },
                     description: {
-                        row: ".col-xs-4",
                         validators: {
                             notEmpty: {
                                 message: "The description is required"
@@ -355,7 +352,6 @@ class Courier {
                         },
                     },
                     destination: {
-                        row: ".col-xs-4",
                         validators: {
                             notEmpty: {
                                 message: "The destination is required"
@@ -363,7 +359,6 @@ class Courier {
                         },
                     },
                     recipient: {
-                        row: ".col-xs-4",
                         validators: {
                             notEmpty: {
                                 message: "The recipient is required"
@@ -371,7 +366,6 @@ class Courier {
                         },
                     },
                     origin: {
-                        row: ".col-xs-4",
                         validators: {
                             notEmpty: {
                                 message: "The origin is required"
@@ -379,7 +373,6 @@ class Courier {
                         },
                     },
                     project: {
-                        row: ".col-xs-4",
                         validators: {
                             notEmpty: {
                                 message: "The Project is required"
@@ -713,9 +706,9 @@ class Courier {
     }
 
     PopulateLocations(d: any) {
-        let content = "";
+        let content = "<option val=' '></option>";
         $.each(d, function (i, j) {
-            content += "<option>" + j.Title + "</option>";
+            content += "<option val='" + j.Title + "'>" + j.Title + "</option>";
         });
         $("#origin,#destination")
             .empty()
@@ -724,9 +717,9 @@ class Courier {
     }
 
     PopulateProjects(d: any) {
-        let content = "";
+        let content = "<option val=' '></option>";
         $.each(d, function (i, j) {
-            content += "<option>" + j.Title + "</option>";
+            content += "<option val='" + j.Title + "'>" + j.Title + "</option>";
         });
         $("#project")
             .empty()

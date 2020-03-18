@@ -1,10 +1,15 @@
 declare var _spPageContextInfo: any;
 declare var SP: any;
+declare var alasql: any;
 const listUrl = "/_api/web/lists/getbytitle";
 const ResourceBookingurl: string =
     _spPageContextInfo.webAbsoluteUrl + listUrl + "('ResourceBooking')/items";
 const Refreshmentsurl =
     _spPageContextInfo.webAbsoluteUrl + listUrl + "('Refreshments')/items";
+let roomArray = new Array();
+let timeArray = new Array();
+let bookings: any[] = new Array();
+let filteredbookings: any[] = new Array();
 
 class Resource {
     Id: number;
@@ -17,6 +22,8 @@ class Resource {
     Equipment: string;
     Status: string;
     Room: string;
+    Location: string;
+    Department: string;
 }
 
 class Refreshment {
@@ -28,18 +35,18 @@ class Refreshment {
 }
 
 class ResourceBooking {
+
     constructor() { }
 
     PostResource(): number {
         let resource = new Resource();
-        resource.MeetingDate = moment(
-            $("#date").val() + " " + moment().format("hh:mm:ss"),
-            "DD-MM-YYYY hh:mm:ss"
-        ).toISOString();
+        resource.MeetingDate = moment($("#date").val(), "DD-MM-YYYY").toISOString();
         resource.Title = $("#meetingName").val();
         resource.Room = $("#room").val();
         resource.Start = $("#start").val();
         resource.End = $("#end").val();
+        resource.Location = $("#location").val();
+        resource.Department = $("#department").val();
         resource.NatureOfAssistance = $("#nature").val();
         resource.Equipment = $("input[name=equipment]:checked")
             .map(function (): string {
@@ -52,7 +59,10 @@ class ResourceBooking {
             __metadata: { type: "SP.Data.ResourceBookingListItem" }
         };
         data = $.extend(data, resource);
-        ResourceBooking.prototype.PostJson(ResourceBookingurl, data, postRefreshments, ResourceBooking.prototype.OnError);
+        ResourceBooking.prototype.PostJson(
+            ResourceBookingurl,
+            data,
+            postRefreshments);
 
         function postRefreshments(d: any) {
             let batchExecutor = new RestBatchExecutor(
@@ -98,7 +108,7 @@ class ResourceBooking {
                     let command = $.grep(commands, function (c) {
                         return v.id === c.id;
                     });
-                    if (command[0].title === "getRefresh1") {
+                    if (command[0].title === "getRefresh0") {
                         swal("success", "Resource booked successfully", "success");
                     }
                 });
@@ -107,13 +117,96 @@ class ResourceBooking {
         return 0;
     }
 
+    AddDepartment(): any {
+        let dept = $("#adddepartment").val();
+        function success() {
+            swal({
+                title: "Success",
+                text: "Department Added Successfully",
+                icon: "success",
+            }).then((result: any) => {
+                location.reload();
+            });
+        }
+        if (dept !== "") {
+            let item = {
+                __metadata: { type: "SP.Data.DepartmentListItem" },
+                Department: dept,
+            };
+            ResourceBooking.prototype.PostJson(
+                _spPageContextInfo.webAbsoluteUrl + listUrl + "('Department')/items",
+                item,
+                success);
+        } else {
+            swal("Error", "Please enter the department", "warning");
+        }
+    }
+
+    RoomBooked(mDate: string, mStart: string, mEnd: string): boolean {
+        let IsRoomBooked = false;
+        let date = moment(mDate, "DD-MM-YYYY").format("YYYY-MM-DD");
+        let selectedstartdate = date + " " + moment(mStart, "hh:mm A").format("HH:mm:ss");
+        let selectedenddate = date + " " + moment(mEnd, "hh:mm A").format("HH:mm:ss");
+        alasql.fn.datetime = function (dateStr: string) {
+            let adate = new Date(dateStr);
+            return moment(adate).format("YYYY-MM-DD HH:mm:ss");
+        };
+        let resultstart: [] = alasql("SELECT * from ? WHERE datetime(start) >= datetime('" + selectedstartdate +
+            "') AND datetime(endt) <= datetime('" + selectedenddate + "') OR " +
+            "datetime(start) <= datetime('" + selectedstartdate + "') AND datetime(endt) <= datetime('" + selectedenddate + "')"
+            , [timeArray]);
+            console.log("SELECT * from ? WHERE datetime(start) >= datetime('" + selectedstartdate +
+            "') AND datetime(endt) <= datetime('" + selectedenddate + "') OR " +
+            "datetime(start) <= datetime('" + selectedstartdate + "') AND datetime(endt) <= datetime('" + selectedenddate + "')");
+        console.log(resultstart);
+
+        if (resultstart.length > 0) {
+            IsRoomBooked = true;
+        }
+        return IsRoomBooked;
+    }
+
+    ConfirmAvailability(mDate: string, mStart: string, mEnd: string, mRoom: string, mLocation: string): boolean {
+        let available = false;
+        let date = moment(mDate, "DD-MM-YYYY").subtract(1, "days").format("YYYY-MM-DD");
+        let selecteddate = date + "T21:00:00.00Z";
+      //  let lastdate = date + "T23:59:59.99Z";
+        let resUrl =
+            // ResourceBookingurl + "?$select=Start,End&$filter=MeetingDate ge '" + selecteddate +
+            // "' and MeetingDate le '" + lastdate + "' and Room eq '" + mRoom + "' and Location eq '" + mLocation + "'";
+            ResourceBookingurl + "?$select=Start,End&$filter=MeetingDate eq '" + selecteddate +
+            "' and Room eq '" + mRoom + "' and Location eq '" + mLocation + "'";
+        ResourceBooking.prototype.RestCalls(resUrl, success);
+        function success(d: any) {
+            if (d.results.length > 0) {
+                $.each(d.results, function (k, v) {
+                    let startdate = date + " " + moment(v.Start, "hh:mm A").format("HH:mm:ss");
+                    let enddate = date + " " + moment(v.End, "hh:mm A").format("HH:mm:ss");
+                    timeArray.push({ start: startdate, endt: enddate });
+                    // console.log(timeArray);
+                });
+                if (ResourceBooking.prototype.RoomBooked(mDate, mStart, mEnd)) {
+                    swal("Failed", "There is a meeting booked at this time", "warning");
+                } else {
+                    available = true;
+                    swal("Success", "No meetings booked at this time", "success");
+                }
+
+            } else {
+                available = true;
+                swal("Success", "No meetings booked at this time", "success");
+            }
+        }
+        return available;
+    }
+
     GetResource(id: number) {
         let resUrl =
-            ResourceBookingurl + "?$select=*,Author/Title&$expand=Author&$Id=" + id;
+            ResourceBookingurl + "?$select=*,Author/Title&$expand=Author&$filter Id eq " + id;
         let refUrl =
             _spPageContextInfo.webAbsoluteUrl +
             listUrl +
-            "('Refreshments')/items?$select=Title,UntOfMeasure,Units,UnitCost&$filter=ResourceId eq " +
+            "('Refreshments')/items?$select=Title,UnitOfMeasure,Units,UnitCost&$filter=ResourceId eq " +
             id;
         const batchExecutor = new RestBatchExecutor(
             _spPageContextInfo.webAbsoluteUrl,
@@ -127,13 +220,13 @@ class ResourceBooking {
         batchRequest.headers = { accept: "application/json;odata=nometadata" };
         commands.push({
             id: batchExecutor.loadRequest(batchRequest),
-            title: "getResource"
+            title: "getResource",
         });
         batchRequest.endpoint = refUrl;
         batchRequest.headers = { accept: "application/json;odata=nometadata" };
         commands.push({
             id: batchExecutor.loadRequest(batchRequest),
-            title: "getRefreshments"
+            title: "getRefreshments",
         });
         batchExecutor
             .executeAsync()
@@ -143,10 +236,14 @@ class ResourceBooking {
                         return v.id === c.id;
                     });
                     if (command[0].title === "getResource") {
-                        ResourceBooking.prototype.PopulateResourceModal(v.result.result.value);
+                        ResourceBooking.prototype.PopulateResourceModal(
+                            v.result.result.value
+                        );
                     }
                     if (command[0].title === "getRefreshments") {
-                        ResourceBooking.prototype.PopulateRefreshmentsModal(v.result.result.value);
+                        ResourceBooking.prototype.PopulateRefreshmentsModal(
+                            v.result.result.value
+                        );
                     }
                 });
             })
@@ -155,7 +252,15 @@ class ResourceBooking {
             });
     }
 
-    PostJson(endpointUri: string, payload: object, success: any, error: any) {
+    GetResourceForReschedule(id: number) {
+        let resUrl =
+            ResourceBookingurl + "?$select=*&$filter=Id eq " + id;
+        ResourceBooking.prototype.RestCalls(
+            resUrl,
+            ResourceBooking.prototype.PopulateRescheduleModal);
+    }
+
+    PostJson(endpointUri: string, payload: object, success: any) {
         $.ajax({
             contentType: "application/json;odata=verbose",
             headers: {
@@ -163,10 +268,12 @@ class ResourceBooking {
                 "X-RequestDigest": $("#__REQUESTDIGEST").val()
             },
             data: JSON.stringify(payload),
-            error,
+            error: function (e: any) {
+                ResourceBooking.prototype.OnError(e);
+            },
             success,
             type: "POST",
-            url: endpointUri,
+            url: endpointUri
         });
     }
 
@@ -177,11 +284,15 @@ class ResourceBooking {
             data: JSON.stringify(payload),
             contentType: "application/json;odata=verbose",
             headers: {
-                "Accept": "application/json;odata=verbose", "X-RequestDigest": $("#__REQUESTDIGEST").val(),
-                "X-HTTP-Method": "MERGE", "If-Match": "*",
+                Accept: "application/json;odata=verbose",
+                "X-RequestDigest": $("#__REQUESTDIGEST").val(),
+                "X-HTTP-Method": "MERGE",
+                "If-Match": "*"
             },
             success: success,
-            error: function (e: any) { ResourceBooking.prototype.OnError(e); },
+            error: function (e: any) {
+                ResourceBooking.prototype.OnError(e);
+            }
         });
     }
 
@@ -197,7 +308,9 @@ class ResourceBooking {
             success: function (data: any) {
                 f(data.d);
             },
-            error: function (e: any) { ResourceBooking.prototype.OnError(e); },
+            error: function (e: any) {
+                ResourceBooking.prototype.OnError(e);
+            }
         });
     }
 
@@ -218,18 +331,28 @@ class ResourceBooking {
         batchRequest.endpoint =
             _spPageContextInfo.webAbsoluteUrl +
             listUrl +
-            "('BoardRooms')/items?$select=Title";
+            "('BoardRooms')/items?$select=Title,Location";
         batchRequest.headers = { accept: "application/json;odata=nometadata" };
         commands.push({
             id: batchExecutor.loadRequest(batchRequest),
-            title: "getBoardRooms",
+            title: "getBoardRooms"
+        });
+        batchRequest.endpoint =
+            _spPageContextInfo.webAbsoluteUrl +
+            listUrl +
+            "('Department')/items?$select=Department&$orderby=Department asc";
+        batchRequest.headers = { accept: "application/json;odata=nometadata" };
+        commands.push({
+            id: batchExecutor.loadRequest(batchRequest),
+            title: "PopulateDepartment"
         });
 
         if (admin) {
             batchRequest.endpoint =
                 ResourceBookingurl +
-                "?$select=Id,Title,MeetingDate,Start,End,Room,Author/Title,Equipment,Status," +
-                "AttachmentFiles,AttachmentFiles/ServerRelativeUrl,AttachmentFiles/FileName&$expand=Author,AttachmentFiles";
+                "?$select=Id,Title,MeetingDate,Start,End,Room,Author/Title,AuthorId,Equipment,Status,Location," +
+                "AttachmentFiles,AttachmentFiles/ServerRelativeUrl,AttachmentFiles/FileName&$expand=Author,AttachmentFiles" +
+                "&$filter=Status ne 'Cancelled'";
             batchRequest.headers = { accept: "application/json;odata=nometadata" };
             commands.push({
                 id: batchExecutor.loadRequest(batchRequest),
@@ -238,11 +361,11 @@ class ResourceBooking {
         } else {
             batchRequest.endpoint =
                 ResourceBookingurl +
-                "?$select=Title,MeetingDate,Start,End,Author/Title&$expand=Author&$filter=Status eq 'Approved'";
+                "?$select=Title,MeetingDate,Start,End,Room,Location,Author/Title,AuthorId&$expand=Author&$filter=Status ne 'Cancelled'";
             batchRequest.headers = { accept: "application/json;odata=nometadata" };
             commands.push({
                 id: batchExecutor.loadRequest(batchRequest),
-                title: "getAllBookings"
+                title: "getAllBookings",
             });
         }
 
@@ -262,6 +385,9 @@ class ResourceBooking {
                     if (command[0].title === "PopulateAdmin") {
                         ResourceBooking.prototype.PopulateAdmin(v.result.result.value);
                     }
+                    if (command[0].title === "PopulateDepartment") {
+                        ResourceBooking.prototype.PopulateDepartment(v.result.result.value);
+                    }
                 });
             })
             .fail(function (err: any) {
@@ -272,6 +398,7 @@ class ResourceBooking {
     PopulateAdmin(d: any) {
         ResourceBooking.prototype.PopulateAdminTable(d);
         if (d.length > 0) {
+            ResourceBooking.prototype.PopulateCalendar(d);
             ResourceBooking.prototype.PopulateAdminReports(d);
         }
     }
@@ -280,23 +407,28 @@ class ResourceBooking {
         let row = "";
         let bookers: any[] = new Array();
         $.each(d, function (i, j) {
-            if (j.Status === "Approved") {
+            // if (j.Status === "Approved") {
+            let eqp = "N/A";
+            if (j.Equipment) {
+                eqp = j.Equipment;
+            }
             row +=
                 "<tr><td>" +
                 j.Title +
                 "</td><td>" +
                 j.Room +
-                "</td>" +
-                "<td>" +
+                "</td><td>" +
+                j.Location +
+                "</td><td>" +
                 j.Author.Title +
                 "</td>" +
                 "<td>" +
                 moment(j.MeetingDate).format("DD/MM/YYYY") +
                 "</td><td>" +
-                j.Equipment +
+                eqp +
                 "</td></tr>";
             bookers.push(j.Author.Title);
-            }
+            // }
         });
         function onlyUnique(value: any, index: number, self: any) {
             return self.indexOf(value) === index;
@@ -305,9 +437,29 @@ class ResourceBooking {
         bookers = bookers.sort();
         let option = "<option val=' '></option>";
         for (let index = 0; index < bookers.length; index++) {
-            option += "<option val='" + bookers[index] + "'>" + bookers[index] + "</option>";
+            option +=
+                "<option val='" + bookers[index] + "'>" + bookers[index] + "</option>";
         }
-        $("#bookedby").html(option);
+        $("#bookedby").html(option)
+            .chosen({ width: "100%", allow_single_deselect: true })
+            .change(function () {
+                $.fn.dataTable.ext.search.push(function (
+                    settings: any,
+                    data: any,
+                    dataIndex: any
+                ) {
+                    if (settings.nTable.id !== "reportstable") {
+                        return true;
+                    }
+                    let value = $("#bookedby").val();
+                    let dt = data[3];
+                    if (value == null) {
+                        return true;
+                    } else if (value.indexOf(dt) !== -1) {
+                        return true;
+                    }
+                });
+            });
         $("#reportstable>tbody").html(row);
         $("#reportstable").dataTable({ responsive: true });
     }
@@ -320,21 +472,19 @@ class ResourceBooking {
                 moment(j.MeetingDate).format("DD/MM/YYYY") +
                 "</td><td>" +
                 j.Start +
-                "</td>" +
-                "<td>" +
+                "</td><td>" +
                 j.End +
                 "</td><td>" +
                 j.Author.Title +
-                "</td>" +
-                "<td>" +
+                "</td><td>" +
                 j.Room +
                 "</td><td>" +
-                j.Status +
+                j.Location +
                 "</td><td>" +
                 getAttachmentLinks(j.AttachmentFiles, j.Id) +
-                "</td><td><a href='#' class='btn btn-primary view-resource' data-id'" +
+                "</td><td><a href='#' class='btn btn-primary view-resource' data-id='" +
                 j.Id +
-                "'></a></td></tr>";
+                "'>View</a></td></tr>";
         });
         $("#admintable>tbody").html(row);
         $("#admintable").dataTable({ responsive: true });
@@ -358,15 +508,138 @@ class ResourceBooking {
         }
     }
 
+    PopulateMyBookings(d: any) {
+        let row = "";
+        $.each(d, function (i, j) {
+            if (j.AuthorId === _spPageContextInfo.userId) {
+                row +=
+                    "<tr><td>" +
+                    moment(j.MeetingDate).format("DD/MM/YYYY") +
+                    "</td><td>" +
+                    j.Start +
+                    "</td><td>" +
+                    j.End +
+                    "</td><td>" +
+                    j.Room +
+                    "</td><td>" +
+                    j.Location +
+                    "</td><td><a href='#' class='btn btn-primary view-booking' data-id='" +
+                    j.Id +
+                    "'>View</a></td></tr>";
+            }
+        });
+        $("#mybookingtable>tbody").html(row);
+        $("#mybookingtable").dataTable({ responsive: true });
+    }
+
+    onlyUnique(value: any, index: number, self: any) {
+        return self.indexOf(value) === index;
+    }
+
     PopulateBoardRoom(d: any) {
+        let locationArray = new Array();
         let option = "<option val=' '></option>";
         $.each(d, function (i, j) {
             option += "<option val='" + j.Title + "'>" + j.Title + "</option>";
+            roomArray.push({ room: j.Title, location: j.Location });
+            locationArray.push(j.Location);
         });
-        $("#room,#filter_room").html(option);
-        $("#filter_room").select2({ tags: true }).on("select2:select", function () {
-            $.fn.dataTable.ext.search.push(
-                function (settings: any, data: any, dataIndex: any) {
+        $("#filter_room").html(option);
+        $("#room,#filter_room,#ch-room").chosen({ width: "100%", allow_single_deselect: true });
+        locationArray = locationArray.filter(ResourceBooking.prototype.onlyUnique);
+
+        option = "<option val=' '></option>";
+        $.each(locationArray, function (k, v) {
+            option += "<option val='" + v + "'>" + v + "</option>";
+        });
+
+        $("#location,#location_filter,#ch-location").html(option);
+        option = "";
+        for (let i = 0; i < roomArray.length; i++) {
+            option += "<option val='" + roomArray[i].room + "'>" + roomArray[i].room + "</option>";
+        }
+        $("#ch-room")
+            .empty()
+            .html(option)
+            .trigger("chosen:updated");
+
+        $("#location")
+            .chosen({ width: "100%" })
+            .change(function () {
+                let loc = $(this).val();
+                option = "";
+                for (let i = 0; i < roomArray.length; i++) {
+                    if (roomArray[i].location === loc) {
+                        option +=
+                            "<option val='" +
+                            roomArray[i].room +
+                            "'>" +
+                            roomArray[i].room +
+                            "</option>";
+                    }
+                }
+                $("#room")
+                    .empty()
+                    .html(option)
+                    .trigger("chosen:updated");
+            });
+        $("#location_filter")
+            .chosen({ width: "100%" })
+            .change(function () {
+                let loc = $(this).val();
+                option = "";
+                for (let i = 0; i < roomArray.length; i++) {
+                    if (roomArray[i].location === loc) {
+                        option +=
+                            "<option val='" +
+                            roomArray[i].room +
+                            "'>" +
+                            roomArray[i].room +
+                            "</option>";
+                    }
+                }
+                $("#c_filter_room")
+                    .empty()
+                    .html(option)
+                    .trigger("chosen:updated");
+                ResourceBooking.prototype.FilterCalendar();
+            });
+        $("#ch-location")
+            .chosen({ width: "100%" })
+            .change(function () {
+                let loc = $(this).val();
+                option = "";
+                for (let i = 0; i < roomArray.length; i++) {
+                    if (roomArray[i].location === loc) {
+                        option +=
+                            "<option val='" +
+                            roomArray[i].room +
+                            "'>" +
+                            roomArray[i].room +
+                            "</option>";
+                    }
+                }
+                $("#ch-room")
+                    .empty()
+                    .html(option)
+                    .trigger("chosen:updated");
+            });
+
+        $("#c_filter_room")
+            .chosen({ width: "100%" })
+            .change(function () {
+                ResourceBooking.prototype.FilterCalendar();
+            });
+
+
+        $("#filter_room")
+            .chosen({ width: "100%" })
+            .change(function () {
+                $.fn.dataTable.ext.search.push(function (
+                    settings: any,
+                    data: any,
+                    dataIndex: any
+                ) {
                     if (settings.nTable.id !== "reportstable") {
                         return true;
                     }
@@ -378,26 +651,79 @@ class ResourceBooking {
                         return true;
                     }
                 });
+                $("#reportstable").dataTable().fnDraw();
+            });
+    }
 
+    FilterCalendar() {
+        if ($("#location_filter").val() !== "") {
+            let fbookings = alasql("SELECT id,title,start,endt FROM ? WHERE room ='" +
+                $("#c_filter_room").val() + "' AND location ='" + $("#location_filter").val() + "'", [bookings]);
+            console.log(fbookings);
+            filteredbookings = new Array();
+            if (fbookings.length > 0) {
+                for (let i = 0; i <= fbookings.length; i++) {
+                    filteredbookings.push({
+                        id: fbookings[i].id,
+                        title: fbookings[i].title,
+                        allDay: false,
+                        start: fbookings[i].start,
+                        end: fbookings[i].endt,
+                    });
+                }
+            }
+            $("#calendar").fullCalendar("removeEvents");
+            $("#calendar").fullCalendar("addEventSource", filteredbookings);
+        }
+    }
+
+    PopulateDepartment(d: any) {
+        let option = "<option val=' '></option>";
+        $.each(d, function (i, j) {
+            option +=
+                "<option val='" + j.Department + "'>" + j.Department + "</option>";
         });
+        $("#department")
+            .html(option)
+            .chosen({ width: "100%" })
+            .change(function () {
+                if ($(this).val() === "Other") {
+                    $("#adddeptrow").removeClass("d-none");
+                } else {
+                    $("#adddeptrow").addClass("d-none");
+                }
+            });
     }
 
     PopulateCalendar(d: any) {
-        let bookings: any[] = new Array();
+        ResourceBooking.prototype.PopulateMyBookings(d);
+        filteredbookings = new Array();
+        bookings = new Array();
         if (d.length > 0) {
             $.each(d, function (i, j) {
+                // if (j.Status === "Approved") {
                 let app_day = moment(j.MeetingDate).format("YYYY-MM-DD");
-                let startdate = moment(app_day + " " + j.Start).toISOString();
-                let enddate = moment(app_day + " " + j.End).toISOString();
-                bookings.push({
+                let startdate = moment(app_day + " " + j.Start, "YYYY-MM-DD hh:mm A").format('YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+                let enddate = moment(app_day + " " + j.End, "YYYY-MM-DD hh:mm A").format('YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+
+                filteredbookings.push({
                     id: j.Id,
                     title: j.Title,
                     allDay: false,
                     start: startdate,
-                    end: enddate
+                    end: enddate,
+                });
+                bookings.push({
+                    id: j.Id,
+                    title: j.Title,
+                    room: j.Room,
+                    location: j.Location,
+                    start: startdate,
+                    endt: enddate,
                 });
             });
         }
+
         $("#calendar").fullCalendar({
             themeSystem: "bootstrap4",
             header: {
@@ -405,9 +731,9 @@ class ResourceBooking {
                 center: "title",
                 right: "month,agendaWeek,agendaDay"
             },
-            events: bookings,
+            events: filteredbookings,
             navLinks: true, // can click day/week names to navigate views
-            selectable: true
+            selectable: true,
         });
     }
 
@@ -417,7 +743,10 @@ class ResourceBooking {
             listUrl +
             "('ResourceAdmin')/items?$select=Id&$filter=AdminId eq " +
             _spPageContextInfo.userId;
-        ResourceBooking.prototype.RestCalls(approverUrl, ResourceBooking.prototype.AllRequests);
+        ResourceBooking.prototype.RestCalls(
+            approverUrl,
+            ResourceBooking.prototype.AllRequests
+        );
     }
 
     UploadDocument() {
@@ -446,43 +775,97 @@ class ResourceBooking {
                 .val()
                 .split("\\")
                 .pop();
-            ResourceBooking.prototype.UploadFileSP(listName, $("#upload-id").val(), fileInput[0].files[0], filename);
+            ResourceBooking.prototype.UploadFileSP(
+                listName,
+                $("#upload-id").val(),
+                fileInput[0].files[0],
+                filename
+            );
         }
     }
 
     PopulateResourceModal(d: any) {
         if (d.length > 0) {
             $.each(d, function (i, j) {
+                $("#m-meeting-title").text(j.Title);
                 $("#m-requester").text(j.Author.Title);
                 $("#m-meeting-date").text(moment(j.MeetingDate).format("DD-MM-YYYY"));
-                $("#m-meeting-duration").text(ResourceBooking.prototype.TimeDifference(j.Start, j.End));
+                $("#m-meeting-duration").text(
+                    ResourceBooking.prototype.TimeDifference(j.Start, j.End)
+                );
                 $("#m-start").text(j.Start);
                 $("#m-end").text(j.End);
                 $("#m-room").text(j.Room);
-                if (j.Status === "Pending") {
-                    $("#btn-approve").removeClass("hidden");
-                }
+                // if (j.Status === "Pending") {
+                //     $("#btn-approve").removeClass("d-none");
+                // } else {
+                //     $("#btn-approve").addClass("d-none");
+                // }
             });
         }
         $("#approveModal").modal();
     }
 
-    Approve(id: number) {
+    PopulateRescheduleModal(d: any) {
+        if (d.results.length > 0) {
+            $.each(d.results, function (i, j) {
+                $("#ch-location").val(j.Location).trigger("chosen:updated");
+                $("#ch-id").val(j.Id);
+                $("#ch-meeting-title").text(j.Title);
+                $("#ch-meeting-date").val(moment(j.MeetingDate).format("DD-MM-YYYY"));
+                $("#ch-start").val(j.Start);
+                $("#ch-end").val(j.End);
+                $("#ch-duration").text(ResourceBooking.prototype.TimeDifference(j.Start, j.End));
+                $("#ch-room").val(j.Room).trigger("chosen:updated");
+            });
+        }
+        $("#rescheduleModal").modal();
+    }
+
+    Cancel(id: number) {
         let item = {
             __metadata: { type: "SP.Data.ResourceBookingListItem" },
-            Status: "Approved",
+            Status: "Cancelled",
         };
-        ResourceBooking.prototype.UpdateJson(ResourceBookingurl + "(" + id + ")", item, success);
+        ResourceBooking.prototype.UpdateJson(
+            ResourceBookingurl + "(" + id + ")",
+            item,
+            success
+        );
         function success() {
             swal({
                 title: "success",
-                text: "Resource Approved Successfully",
-                type: "success",
+                text: "Resource Booking cancelled Successfully",
+                type: "success"
             }).then((result: any) => {
                 location.reload();
             });
         }
     }
+
+    Reschedule(id: number) {
+        let item = {
+            __metadata: { type: "SP.Data.ResourceBookingListItem" },
+            Status: "Rescheduled",
+            MeetingDate: moment($("#ch-meeting-date").val(), "DD-MM-YYYY").toISOString(),
+            Start: $("#ch-start").val(),
+            End: $("#ch-end").val(),
+        };
+        ResourceBooking.prototype.UpdateJson(
+            ResourceBookingurl + "(" + id + ")",
+            item,
+            success);
+        function success() {
+            swal({
+                title: "success",
+                text: "Resource Booking resheduled successfully",
+                type: "success",
+            }).then(() => {
+                location.reload();
+            });
+        }
+    }
+
 
     TimeDifference(start: string, end: string): string {
         let diff = "";
@@ -497,15 +880,16 @@ class ResourceBooking {
 
     PopulateRefreshmentsModal(d: any) {
         if (d.length > 0) {
-            let row = "", cost = 0;
+            let row = "",
+                cost = 0;
             $.each(d, function (i, j) {
-                cost += (j.Units * j.UnitOfMeasure);
+                cost += j.Units * j.UnitCost;
                 row += `<tr>
                 <td>${j.Title}</td>
                 <td>${j.UnitOfMeasure}</td>
                 <td>${j.Units}</td>
                 <td>${j.UnitCost}</td>
-                <td>${j.Units}*${j.UnitCost}</td>
+                <td>${j.Units * j.UnitCost}</td>
                 </tr>`;
             });
             $("#m-refreshments>tbody").html(row);
@@ -571,7 +955,7 @@ class ResourceBooking {
             },
             function (err) {
                 deferred.reject(err);
-            },
+            }
         );
         return deferred.promise();
     }
@@ -593,16 +977,16 @@ class ResourceBooking {
                 onStepChanging: function (
                     e: any,
                     currentIndex: number,
-                    newIndex: number,
+                    newIndex: number
                 ) {
-                    this.adjustIframeHeight();
+                    ResourceBooking.prototype.adjustIframeHeight();
                     if (currentIndex > newIndex) {
                         return true;
                     }
+
                     let fv = $("#requesterDetails").data("formValidation"),
-                        $container = $("#requesterDetails").find(
-                            'fieldset[data-step="' + currentIndex + '"]',
-                        );
+                        $container = $("#requesterDetails")
+                            .find('fieldset[data-step="' + currentIndex + '"]');
                     fv.validateContainer($container);
 
                     let isValidStep = fv.isValidContainer($container);
@@ -617,11 +1001,15 @@ class ResourceBooking {
                         $("#starttime").html($("#start").val());
                         $("#endtime").html($("#end").val());
                         $("#reqname").html($("#requesterName").val());
-                        $("#durationMeeting").html(
-                            $("#meetingDuration").val() +
-                            " " +
-                            $("#meetingDurationUnit").val(),
-                        );
+                        $("#durationMeeting").html($("#meetingDuration").text());
+                        if (ResourceBooking.prototype.ConfirmAvailability(
+                            $("#date").val(),
+                            $("#start").val(),
+                            $("#end").val(),
+                            $("#room").val(),
+                            $("#location").val())) {
+                            return false;
+                        }
                     } else if (currentIndex === 1 && newIndex === 2) {
                         let items = $('input[name="equipment"]:checked');
                         let list = "";
@@ -673,12 +1061,13 @@ class ResourceBooking {
 
                         $("#itemslist").html(content);
                     }
+
                     return true;
                 },
                 onFinishing: function (e: any, currentIndex: number) {
                     let fv = $("#requesterDetails").data("formValidation"),
                         $container = $("#requesterDetails").find(
-                            'fieldset[data-step="' + currentIndex + '"]',
+                            'fieldset[data-step="' + currentIndex + '"]'
                         );
 
                     // Validate the last step container
@@ -700,59 +1089,73 @@ class ResourceBooking {
                         closeOnConfirm: false,
                         showLoaderOnConfirm: true,
                         confirmButtonText: "Submit",
-                        confirmButtonColor: "#5cb85c",
+                        confirmButtonColor: "#5cb85c"
                     }).then(function (result: any) {
                         if (result.value) {
                             ResourceBooking.prototype.PostResource();
                         }
                     });
-                },
+                }
             })
             .formValidation({
                 framework: "bootstrap",
                 icon: {
                     valid: "fa fa-check",
                     invalid: "fa fa-times",
-                    validating: "fa fa-refresh",
+                    validating: "fa fa-refresh"
                 },
                 excluded: "disabled",
                 fields: {
+                    location: {
+                        validators: {
+                            notEmpty: {
+                                message: "Location is required"
+                            }
+                        }
+                    },
+                    department: {
+                        validators: {
+                            notEmpty: {
+                                message: "Department is required",
+                            }
+                        }
+                    },
                     room: {
                         validators: {
                             notEmpty: {
                                 message: "Room is required"
-                            },
-                        },
+                            }
+                        }
                     },
                     date: {
                         validators: {
                             notEmpty: {
                                 message: "Date of meeting is required"
                             }
-                        },
+                        }
                     },
                     meetingName: {
                         validators: {
                             notEmpty: {
                                 message: "Name of meeting must be included"
                             }
-                        },
+                        }
                     },
                     start: {
                         validators: {
                             notEmpty: {
                                 message: "Start time is required"
                             }
-                        },
+                        }
                     },
                     end: {
                         validators: {
                             notEmpty: {
                                 message: "End time is required"
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             })
             .on("success.form.fv", function (e: any) {
                 e.preventDefault();
@@ -761,80 +1164,129 @@ class ResourceBooking {
     }
 }
 
-$.fn.dataTable.ext.search.push(
-    function (settings: any, data: any, dataIndex: any) {
-        if (settings.nTable.id !== "reportstable") {
-            return true;
-        }
-        let date_from = moment("01-01-1000", "DD-MM-YYYY");
-        let the_date = moment().format("DD-MM-YYYY");
-        let date_to = moment().endOf("year");
+$.fn.dataTable.ext.search.push(function (
+    settings: any,
+    data: any,
+    dataIndex: any
+) {
+    if (settings.nTable.id !== "reportstable") {
+        return true;
+    }
+    let date_from = moment("01-01-1000", "DD-MM-YYYY");
+    let the_date = moment().format("DD-MM-YYYY");
+    let date_to = moment().endOf("year");
 
-        if ($("#filter_date_from").val() !== "") {
-            date_from = moment($("#filter_date_from").val(), "DD-MM-YYYY");
-        }
-        if ($("#filter_date_to").val() !== "") {
-            date_to = moment($("#filter_date_to").val(), "DD-MM-YYYY");
-        }
-        if (data[3] !== "") {
-            the_date = data[3];
-        }
-        let loc = moment(the_date, "DD-MM-YYYY");
+    if ($("#filter_date_from").val() !== "") {
+        date_from = moment($("#filter_date_from").val(), "DD-MM-YYYY");
+    }
+    if ($("#filter_date_to").val() !== "") {
+        date_to = moment($("#filter_date_to").val(), "DD-MM-YYYY");
+    }
+    if (data[4] !== "") {
+        the_date = data[4];
+    }
+    let loc = moment(the_date, "DD-MM-YYYY");
 
-        if (loc.isSameOrAfter(date_from) && loc.isSameOrBefore(date_to)) {
-            return true;
-        }
-        return false;
-    },
-);
-
+    if (loc.isSameOrAfter(date_from) && loc.isSameOrBefore(date_to)) {
+        return true;
+    }
+    return false;
+});
 
 $(document).ready(function () {
     let resourceBooking = new ResourceBooking();
     resourceBooking.initForm();
     resourceBooking.GetIsApprover();
     $("#requesterName").val(_spPageContextInfo.userDisplayName);
-    $("#datepicker").datetimepicker({
+    $("#datepicker,#meetingdatepicker").datetimepicker({
         format: "DD-MM-YYYY",
         minDate: moment(),
         useCurrent: false,
+        widgetPositioning: {
+            horizontal: "auto",
+            vertical: "bottom"
+        }
     });
     $("#datepicker2,#to").datetimepicker({
-        format: "DD-MM-YYYY",
+        format: "DD-MM-YYYY"
     });
     $("#datepicker2,#to").on("change.datetimepicker", function (e) {
-       $("#reportstable").dataTable().fnDraw();
+        $("#reportstable")
+            .dataTable()
+            .fnDraw();
     });
     $("input.upload").on("change", function () {
-        const path = $(this).val(), filename = path.substr(path.lastIndexOf("\\") + 1);
-        $(this).closest(".input-group").find(".inputFiles").val(filename);
+        const path = $(this).val(),
+            filename = path.substr(path.lastIndexOf("\\") + 1);
+        $(this)
+            .closest(".input-group")
+            .find(".inputFiles")
+            .val(filename);
     });
-    $("#starttimepicker").datetimepicker({ format: "LT" });
-    $("#endtimepicker").datetimepicker({
+    $("#starttimepicker,#startpicker").datetimepicker({ format: "LT" });
+    $("#endtimepicker,#endpicker").datetimepicker({
         format: "LT",
-        useCurrent: false,
+        useCurrent: false
     });
     $("#starttimepicker").on("change.datetimepicker", function (e) {
         $("#endtimepicker").datetimepicker("minDate", e.date);
-        let start = $("#starttimepicker").val();
-        let end = $("#endtimepicker").val();
+        let start = $("#start").val();
+        let end = $("#end").val();
         if (start !== "" && end !== "") {
-            meetingDuration.text(resourceBooking.TimeDifference(start, end));
-
+            $("#meetingDuration").text(resourceBooking.TimeDifference(start, end));
         }
     });
     $("#endtimepicker").on("change.datetimepicker", function (e) {
         $("#starttimepicker").datetimepicker("maxDate", e.date);
-        let start = $("#starttimepicker").val();
-        let end = $("#endtimepicker").val();
+        let start = $("#start").val();
+        let end = $("#end").val();
         if (start !== "" && end !== "") {
-            meetingDuration.text(resourceBooking.TimeDifference(start, end));
-
+            $("#meetingDuration").text(resourceBooking.TimeDifference(start, end));
         }
     });
-    $("select[name='unitofmeasure[]']").select2({
-        tags: true,
+    $("#startpicker").on("change.datetimepicker", function (e) {
+        $("#endpicker").datetimepicker("minDate", e.date);
+        let start = $("#ch-start").val();
+        let end = $("#ch-end").val();
+        if (start !== "" && end !== "") {
+            $("#ch-duration").text(resourceBooking.TimeDifference(start, end));
+        }
     });
+    $("#endpicker").on("change.datetimepicker", function (e) {
+        $("#startpicker").datetimepicker("maxDate", e.date);
+        let start = $("#ch-start").val();
+        let end = $("#ch-end").val();
+        if (start !== "" && end !== "") {
+            $("#ch-duration").text(resourceBooking.TimeDifference(start, end));
+        }
+        if ($("#ch-meeting-date").val() !== "" && $("#ch-room").val()) {
+            if (resourceBooking.ConfirmAvailability(
+                $("#ch-meeting-date").val(),
+                $("#ch-start").val(),
+                $("#ch-end").val(),
+                $("#ch-room").val(),
+                $("#ch-location").val())) {
+                $("#ch-availability").text("Not Available");
+            } else {
+                $("#ch-availability").text("Available");
+            }
+        }
+    });
+    $("#meetingdatepicker").on("change.datetimepicker", function (e) {
+        if ($("#ch-meeting-date").val() !== "" && $("#ch-room").val()) {
+            if (resourceBooking.ConfirmAvailability(
+                $("#ch-meeting-date").val(),
+                $("#ch-start").val(),
+                $("#ch-end").val(),
+                $("#ch-room").val(),
+                $("#ch-location").val())) {
+                $("#ch-availability").text("Not Available");
+            } else {
+                $("#ch-availability").text("Available");
+            }
+        }
+    });
+    $("select[name='unitofmeasure[]']").chosen({ width: "100%" });
     $("#btnadd").on("click", function () {
         $("#tableItems tr:last").after(
             '<tr><td><input type="text" class="form-control" name="item[]" id="item"></td><td>' +
@@ -852,7 +1304,7 @@ $(document).ready(function () {
             "    </select>" +
             '</div></td><td><input type="number" name="number[]" id="number" class="form-control quantity"></td>' +
             '<td><input type="number" name="unit-cost[]" id="unit-cost" class="form-control unitcost"></td>' +
-            '<td><input type="text" name="totalamount[]" id="totalamount" class="form-control subtotal" readonly></td></tr>',
+            '<td><input type="text" name="totalamount[]" id="totalamount" class="form-control subtotal" readonly></td></tr>'
         );
         $itemoption = $("#tableItems tr:last").find('[name="item[]"]');
         $unitoption = $("#tableItems tr:last").find('[name="unitofmeasure[]"]');
@@ -872,14 +1324,14 @@ $(document).ready(function () {
         if (i > 2) {
             let $itemoption = $("#tableItems tr:last").find('[name="item[]"]');
             let $unitoption = $("#tableItems tr:last").find(
-                '[name="unitofmeasure[]"]',
+                '[name="unitofmeasure[]"]'
             );
             let $numberoption = $("#tableItems tr:last").find('[name="number[]"]');
             let $unitCostoption = $("#tableItems tr:last").find(
-                '[name="unit-cost[]"]',
+                '[name="unit-cost[]"]'
             );
             let $totaloption = $("#tableItems tr:last").find(
-                '[name="totalamount[]"]',
+                '[name="totalamount[]"]'
             );
 
             $("#requesterDetails").formValidation("removeField", $itemoption);
@@ -896,26 +1348,63 @@ $(document).ready(function () {
                 total_pre += parseInt(
                     $(val)
                         .val()
-                        .replace(/,/g, ""),
+                        .replace(/,/g, "")
                 );
             });
 
             $("#totalcost").text(
-                total_pre.toFixed(2).replace(/(\d)(?=(\d\d\d)+(?!\d))/g, "$1,"),
+                total_pre.toFixed(2).replace(/(\d)(?=(\d\d\d)+(?!\d))/g, "$1,")
             );
         }
     });
 
     $("#admintable").on("click", ".btn-uploadModal", function () {
-        let id = $("this").data("id");
+        let id = $(this).data("id");
         $("#upload-id").val(id);
-        $("#uploadModal").modal("show");
+        $("#uploadmodal").modal();
     });
 
-    $(".btn-upload").click(function () {
-        let id = $("this").data("id");
-        $("#upload-id").val(id);
-        $("#uploadModal").modal("show");
+    $("#btn-upload").click(function () {
+        resourceBooking.UploadDocument();
+    });
+    $("#btn-cancel").click(function () {
+        swal({
+            title: "Are you sure?",
+            text: "You are about to cancel this Resource Booking",
+            icon: "warning",
+            showCancelButton: true,
+        }).then((result: any) => {
+            if (result.value) {
+                resourceBooking.Cancel($("#ch-id").val());
+            }
+        });
+    });
+
+    $("#btn-reschedule").click(function () {
+        swal({
+            title: "Are you sure?",
+            text: "You are about to reschedule this Resource Booking",
+            type: "warning",
+            showCancelButton: true,
+        }).then((result: any) => {
+            if (result.value) {
+                if ($("#ch-availability").text() === "Available") {
+                    resourceBooking.Reschedule($("#ch-id").val());
+                } else {
+                    swal("Error", "You can only reschedule to a time without a booking!", "warning");
+                }
+            }
+        });
+    });
+
+    $("#btnadddepartment").click(function () {
+        resourceBooking.AddDepartment();
+    });
+
+    $("#mybookingtable").on("click", ".view-booking", function () {
+        let id = $(this).data("id");
+        $("#ch-id").val(id);
+        resourceBooking.GetResourceForReschedule(id);
     });
 
     $("#admintable").on("click", ".view-resource", function () {
@@ -941,7 +1430,7 @@ $(document).ready(function () {
                 total_pre += parseInt(
                     $(val)
                         .val()
-                        .replace(/,/g, ""),
+                        .replace(/,/g, "")
                 );
             });
 
@@ -969,7 +1458,7 @@ $(document).ready(function () {
                 total_pre += parseInt(
                     $(val)
                         .val()
-                        .replace(/,/g, ""),
+                        .replace(/,/g, "")
                 );
             });
             $("#totalcost").text(total_pre.toFixed(2));
